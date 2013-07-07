@@ -1,0 +1,9 @@
+"""This module contains fundamental physical constants and conversion
+factors. The units are specified in the variable name itself. Numerator and
+denomnator are separated by an underscore.
+
+Example:
+
+k_eV_K -> Boltzmann constant (kb) in eV*K^{-1}"""
+
+kb_eV_K = 8.6173324e-5
