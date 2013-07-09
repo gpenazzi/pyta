@@ -29,12 +29,12 @@ def fermi(energy, chempot, temppot = 0.0):
         return 1.0
 
     #If no degenerate situation, make the normal calculation
-    n = 1.0 / ((np.exp((energy - chemical_potential) / temp_potential) + 1.0))
-    assert(n < 1. and n > 0.0 )
+    n = 1.0 / ((np.exp((energy - chempot) / temppot) + 1.0))
+    assert(n <= 1. and n >= 0.0 )
     return n
 
     
-def bose(energy, chemical_potential = 0.0, temp_potential = 0.0):
+def bose(energy, chempot = 0.0, temppot = 0.0):
     """Return the value of the Fermi-Dirac distribution
     .. math::
             \frac{1.0}{exp(\frac{E-\mu}{k_{B}T}) - 1.0}
@@ -53,6 +53,6 @@ def bose(energy, chemical_potential = 0.0, temp_potential = 0.0):
     if (energy-chempot)/temppot > 100.0:
         return 0.0
     
-    n = 1.0 / ((np.exp((energy - chemical_potential) / temp_potential) - 1.0))
+    n = 1.0 / ((np.exp((energy - chempot) / temppot) - 1.0))
     assert(n > 0.0 )
     return n
