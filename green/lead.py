@@ -82,20 +82,23 @@ class MRDephasing(Lead):
     def do_sigma(self):
         """Calculate the retarded self energy"""
         assert(not self._eqgreen is None)
-        self._sigma = np.matrix(np.eye(self._size), dtype = np.complex128) * self._deph * self._eqgreen
+        tmp = np.matrix(np.eye(self._size), dtype = np.complex128)
+        np.fill_diagonal(tmp,self._eqgreen.diagonal())
+        self._sigma = tmp * self._deph
 
     def do_sigma_gr(self):
-        """Calculate the greater self energy"""
+        """Calculate the retarded self energy"""
         assert(not self._green_gr is None)
-        self._sigma_gr = np.matrix(np.eye(self._size), dtype = np.complex128) * self._deph *\
-        self._green_gr
+        tmp = np.matrix(np.eye(self._size), dtype = np.complex128)
+        np.fill_diagonal(tmp,self._green_gr.diagonal())
+        self._sigma_gr = tmp * self._deph
 
     def do_sigma_lr(self):
-        """Calculate the greater self energy"""
+        """Calculate the retarded self energy"""
         assert(not self._green_lr is None)
-        self._sigma_lr = np.matrix(np.eye(self._size), dtype = np.complex128) * self._deph *\
-        self._green_lr
-
+        tmp = np.matrix(np.eye(self._size), dtype = np.complex128)
+        np.fill_diagonal(tmp,self._green_lr.diagonal())
+        self._sigma_lr = tmp * self._deph
 
     def get_sigma(self):
         if self._sigma is None:
