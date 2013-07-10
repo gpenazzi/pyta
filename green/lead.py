@@ -41,7 +41,8 @@ class MRDephasing(Lead):
     """A Lead modelling Momentum relaxing dephasing"""
 
     def __init__(self, name, deph, eqgreen = None, green_gr = None):
-        """Only the name and dephasing intensity needed at first. You can provide the equilibrium or the Keldysh Green's function
+        """Only the name and dephasing intensity needed at first. 
+        You can provide the equilibrium or the Keldysh Green's function
     to get the self energies using set_eqgreen() and set_neqgreen()"""
         position = 0
         Lead.__init__(self, name, position)
@@ -113,6 +114,77 @@ class MRDephasing(Lead):
 
 
 
+class MCDephasing(Lead):
+    """A Lead modelling Momentum conserving dephasing"""
+
+    def __init__(self, name, deph, eqgreen = None, green_gr = None):
+        """Only the name and dephasing intensity needed at first. 
+        You can provide the equilibrium or the Keldysh Green's function
+    to get the self energies using set_eqgreen() and set_neqgreen()"""
+        position = 0
+        Lead.__init__(self, name, position)
+        self._sigma = None
+        self._green_gr = green_gr
+        self._eqgreen = eqgreen
+        self._deph = deph
+        self._size = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+
+    def set_deph(self, deph):
+        """Set a new dephasing parameter"""
+        self._sigma = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+        self._deph = deph
+
+    def set_eqgreen(self, eqgreen):
+        """Set an equilibrium Green's function"""
+        self._sigma = None
+        self._eqgreen = eqgreen
+        self._size = self._eqgreen.shape[0]
+
+    def set_green_gr(self, green_gr):
+        """Set a non-equilibrium Green's function (Greater)"""
+        self._sigma_gr = None
+        self._green_gr = green_gr
+        self._size = self._green_gr.shape[0]
+
+    def set_green_lr(self, green_lr):
+        """Set a non-equilibrium Green's function (Lesser)"""
+        self._sigma_lr = None
+        self._green_lr = green_lr
+        self._size = self._green_lr.shape[0]
+
+    def do_sigma(self):
+        """Calculate the retarded self energy"""
+        assert(not self._eqgreen is None)
+        self._sigma = self._eqgreen * self._deph
+
+    def do_sigma_gr(self):
+        """Calculate the greater self energy"""
+        assert(not self._green_gr is None)
+        self._sigma_gr = self._green_gr * self._deph
+
+    def do_sigma_lr(self):
+        """Calculate the greater self energy"""
+        assert(not self._green_lr is None)
+        self._sigma_lr =  self._green_lr * self._deph 
+
+    def get_sigma(self):
+        if self._sigma is None:
+            self.do_sigma()
+        return self._sigma
+
+    def get_sigma_gr(self):
+        if self._sigma_gr is None:
+            self.do_sigma_gr()
+        return self._sigma_gr
+
+    def get_sigma_lr(self):
+        if self._sigma_lr is None:
+            self.do_sigma_lr()
+        return self._sigma_lr
 
 class PhysicalLead(Lead):
     """A class derived from Lead for the description of physical contacts"""

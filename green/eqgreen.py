@@ -47,6 +47,8 @@ class Green:
         if energy != self._energy:
             self._energy = energy
             self._eqgreen = None
+            self._green_lr = None
+            self._green_gr = None
             #Update energy point in all leads
             for key in self._leads:
                 (self._leads[key]).set_energy(energy)
