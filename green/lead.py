@@ -193,7 +193,7 @@ class PhysicalLead(Lead):
 
     def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
                  over_t=None, over_dl=None, mu=None, temp=0.0,
-                 delta=defaults.delta):
+                 particle="fermion", delta=defaults.delta):
         """A PhysicalLead object describe a semi-infinite periodic lead
         within the Open Boundary
         Steady State picture. The following quantities must be specified:
@@ -221,6 +221,7 @@ class PhysicalLead(Lead):
         self._mu = mu
         self._temp = temp
         self._delta = delta
+        self._particle = particle
         Lead.__init__(self, name, position, delta)
 
         assert(type(ham) == np.matrixlib.defmatrix.matrix)
@@ -304,25 +305,38 @@ class PhysicalLead(Lead):
     def get_sigma_gr(self):
         """Calculate the Sigma greater"""
         assert(not self._mu is None)
-        return ((1.0 - stats.fermi(self._energy, self._mu, temppot=self._temp))
+        if self._particle == "fermion":
+            return ((1.0 - stats.fermi(self._energy, self._mu, temppot=self._temp))
                 * (-1j) * self.get_gamma())
+        elif self._particle == "boson":
+            return ((stats.bose(self._energy, self._mu, temppot=self._temp) +
+                     1.0) * (-1j) * self.get_gamma())
 
     def get_sigma_lr(self):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
-        sigma_lr = (stats.fermi(self._energy, self._mu, temppot=self._temp) *
+        if self._particle == "fermion":
+            return (stats.fermi(self._energy, self._mu, temppot=self._temp) *
                     1j * self.get_gamma())
-        return sigma_lr
+        elif self._particle == "boson":
+            return ((stats.bose(self._energy, self._mu, temppot=self._temp)) * 
+                    (-1j) * self.get_gamma())
+            
 
     def get_inscattering(self):
         """Calculate the inscattering Sigma (Datta notation)"""
         assert(not self._mu is None)
-        return stats.fermi(self._energy, self._mu) * self.get_gamma()
+        assert(self._article == "fermion")
+        return (stats.fermi(self._energy, self._mu, temppot=self._temp) *
+                            self.get_gamma())
 
     def get_outscattering(self):
         """Calculate the outscattering Sigma (Datta notation)"""
         assert(not self._mu is None)
-        return (1.0 - stats.fermi(self._energy, self._mu)) * self.get_gamma()
+        assert(self._article == "fermion")
+        if self._particle == "fermion":
+            return ((1.0 - stats.fermi(self._energy, self._mu,
+                     temppot=self._temp)) * self.get_gamma())
 
     def get_sigma(self):
         if self._sigma is None:
