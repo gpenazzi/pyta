@@ -1,7 +1,7 @@
 import numpy as np
 import pyta.core.defaults as defaults
 import pyta.stats as stats
-
+import pyta.core.consts as consts
 
 class Lead:
     """A base class for managing and building up real and virtual leads
@@ -25,6 +25,11 @@ class Lead:
     def set_energy(self, energy):
         """By default set_energy is a dummy function, not all the self energy
         are explicitely energy dependent (WideBand, momentum relaxing etc.)"""
+        return 0
+    
+    def set_freq(self, freq):
+        """By default set_freq is a dummy function, not all the self energy
+        are explicitely frequency dependent (WideBand, momentum relaxing etc.)"""
         return 0
 
     def get_size(self):
@@ -121,7 +126,7 @@ class MCDephasing(Lead):
     def __init__(self, name, deph, eqgreen=None, green_gr=None):
         """Only the name and dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
-    to get the self energies using set_eqgreen() and set_neqgreen()"""
+        to get the self energies using set_eqgreen() and set_neqgreen()"""
         position = 0
         Lead.__init__(self, name, position)
         self._sigma = None
@@ -272,7 +277,10 @@ class PhysicalLead(Lead):
         Note: from ASE implementation"""
 
         self._delta
-        z = self._energy + self._delta * 1j
+        if self._particle == "fermion":
+            z = self._energy + self._delta * 1j
+        elif self._particle == "boson":
+            z = self._energy * self._energy + self._delta * 1j
         #TODO: Verify this!!
         v_00 = z * self._over.H - self._ham.H
         v_11 = v_00.copy()
@@ -294,7 +302,10 @@ class PhysicalLead(Lead):
 
     def _do_sigma(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
-        z = self._energy + self._delta * 1.j
+        if self._particle == "fermion":
+            z = self._energy + self._delta * 1j
+        elif self._particle == "boson":
+            z = self._energy * self._energy + self._delta * 1j
         tau_dl = z * self._over_dl - self._ham_dl
         a_dl = np.linalg.solve(self.do_invsurfgreen(), tau_dl)
         tau_ld = z * self._over_dl.T.conj() - self._ham_dl.T.conj()
@@ -350,4 +361,163 @@ class PhysicalLead(Lead):
     def get_gamma(self):
         "Return \Gamma=j(\Sigma^{r} - \Sigma^{a})"""
         return 1.j * (self.get_sigma() - self.get_sigma().H)
+
+
+class PhysicalLeadFermion(PhysicalLead):
+    """A class derived from Lead for the description of physical contacts, in
+    the case of Fermion Green's functions"""
+    def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
+                 over_t=None, over_dl=None, mu=None, temp=0.0,
+                 particle="fermion", delta=defaults.delta):
+
+        PhysicalLead.__init__(self, name, ham, ham_t, ham_dl, 
+                position, over=None, over_t=None, over_dl=None, mu=None, 
+                temp=0.0, delta=defaults.delta)
+
+        self._energy = None
+    
+    def set_energy(self, energy):
+        """Set energy point"""
+        if energy != self._energy:
+            self._energy = energy
+            self._sigma = None
+    
+    def do_invsurfgreen(self, tol=defaults.surfgreen_tol):
+        """Calculate the INVERSE of surface green's function
+        by means of decimation
+        algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
+        two-dimensional Hamiltonian at surfacesPhys. Rev.B 28 4397.
+
+        Note: from ASE implementation"""
+
+        self._delta
+        z = self._energy + self._delta * 1j
+        #TODO: Verify this!!
+        v_00 = z * self._over.H - self._ham.H
+        v_11 = v_00.copy()
+        v_10 = z * self._over_t - self._ham_t
+        v_01 = z * self._over_t.H - self._ham_t.H
+        delta = tol + 1
+        while delta > tol:
+            a = np.linalg.solve(v_11, v_01)
+            b = np.linalg.solve(v_11, v_10)
+            v_01_dot_b = np.dot(v_01, b)
+            v_00 -= v_01_dot_b
+            v_11 -= np.dot(v_10, a)
+            v_11 -= v_01_dot_b
+            v_01 = -np.dot(v_01, a)
+            v_10 = -np.dot(v_10, b)
+            delta = abs(v_01).max()
+
+        return v_00
+
+    def _do_sigma(self):
+        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        z = self._energy + self._delta * 1j
+        tau_dl = z * self._over_dl - self._ham_dl
+        a_dl = np.linalg.solve(self.do_invsurfgreen(), tau_dl)
+        tau_ld = z * self._over_dl.T.conj() - self._ham_dl.T.conj()
+        self._sigma = np.dot(tau_ld, a_dl)
+        return self._sigma
+
+    def get_sigma_gr(self):
+        """Calculate the Sigma greater"""
+        assert(not self._mu is None)
+        return ((1.0 - stats.fermi(self._energy, self._mu, temppot=self._temp))
+                * (-1j) * self.get_gamma())
+
+    def get_sigma_lr(self):
+        """Calculate the Sigma lesser"""
+        assert(not self._mu is None)
+        return (stats.fermi(self._energy, self._mu, temppot=self._temp) *
+                    1j * self.get_gamma())
+            
+    def get_inscattering(self):
+        """Calculate the inscattering Sigma (Datta notation)"""
+        assert(not self._mu is None)
+        return (stats.fermi(self._energy, self._mu, temppot=self._temp) *
+                            self.get_gamma())
+
+    def get_outscattering(self):
+        """Calculate the outscattering Sigma (Datta notation)"""
+        assert(not self._mu is None)
+        if self._particle == "fermion":
+            return ((1.0 - stats.fermi(self._energy, self._mu,
+                     temppot=self._temp)) * self.get_gamma())
+
+
+class PhysicalLeadPhonon(PhysicalLead):
+    """A class derived from Lead for the description of physical contacts, in
+    the case of Fermion Green's functions"""
+    def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
+                 over_t=None, over_dl=None, mu=None, temp=0.0,
+                 particle="fermion", delta=defaults.delta):
+
+        PhysicalLead.__init__(self, name, ham, ham_t, ham_dl, 
+                position, over=None, over_t=None, over_dl=None, mu=None, 
+                temp=0.0, delta=defaults.delta)
+
+        self._freq = None
+    
+    def set_freq(self, freq):
+        """Set frequency point"""
+        if freq != self._freq:
+            self._freq = freq
+            self._sigma = None
+    
+    def do_invsurfgreen(self, tol=defaults.surfgreen_tol):
+        """Calculate the INVERSE of surface green's function
+        by means of decimation
+        algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
+        two-dimensional Hamiltonian at surfacesPhys. Rev.B 28 4397.
+
+        Note: from ASE implementation
+        slightly adapted for phonons
+        
+        Note: frequencies are given in fs^-1, energies in eV"""
+
+        self._delta
+        z = self._freq * self._freq + self._delta * 1j
+        #TODO: Verify this!!
+        v_00 = z * self._over.H - self._ham.H
+        v_11 = v_00.copy()
+        v_10 = z * self._over_t - self._ham_t
+        v_01 = z * self._over_t.H - self._ham_t.H
+        delta = tol + 1
+        while delta > tol:
+            a = np.linalg.solve(v_11, v_01)
+            b = np.linalg.solve(v_11, v_10)
+            v_01_dot_b = np.dot(v_01, b)
+            v_00 -= v_01_dot_b
+            v_11 -= np.dot(v_10, a)
+            v_11 -= v_01_dot_b
+            v_01 = -np.dot(v_01, a)
+            v_10 = -np.dot(v_10, b)
+            delta = abs(v_01).max()
+
+        return v_00
+
+    def _do_sigma(self):
+        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        z = self._freq * self._freq + self._delta * 1j
+        tau_dl = z * self._over_dl - self._ham_dl
+        a_dl = np.linalg.solve(self.do_invsurfgreen(), tau_dl)
+        tau_ld = z * self._over_dl.T.conj() - self._ham_dl.T.conj()
+        self._sigma = np.dot(tau_ld, a_dl)
+
+        return self._sigma
+
+    def get_sigma_gr(self):
+        """Calculate the Sigma greater"""
+        assert(not self._mu is None)
+        energy = self._freq * consts.hbar_eV_fs
+        return ((stats.bose(energy, self._mu, temppot=self._temp) +
+                 1.0) * (-1j) * self.get_gamma())
+
+    def get_sigma_lr(self):
+        """Calculate the Sigma lesser"""
+        assert(not self._mu is None)
+        energy = self._freq * consts.hbar_eV_fs
+        return ((stats.bose(energy, self._mu, temppot=self._temp)) * 
+                    (-1j) * self.get_gamma())
 
