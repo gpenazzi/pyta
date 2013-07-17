@@ -115,10 +115,10 @@ class GreenFermion(Green):
     """Build and manage Green's function for Fermions. Only the method which
     differentiate fermions from other particles are reimplemented here"""
 
-    def __init__(self, energy, ham, over=None, delta=defaults.delta):
+    def __init__(self, ham, over=None, delta=defaults.delta):
         
         Green.__init__(self, ham, over=over, delta=defaults.delta)
-        self._energy = energy
+        self._energy = None
 
     def set_energy(self, energy):
         """Set energy point"""
@@ -149,10 +149,10 @@ class GreenPhonon(Green):
     """Build and manage Green's function for phonons. Only the method which
     differentiate phonons from other particles are reimplemented here"""
     
-    def __init__(self, freq, ham, over=None, delta=defaults.delta):
+    def __init__(self, ham, over=None, delta=defaults.delta):
         Green.__init__(self, ham, over=over, delta=defaults.delta)
 
-        self._freq = freq
+        self._freq = None
 
     def set_freq(self, freq):
         """Set energy point"""

@@ -222,7 +222,6 @@ class PhysicalLead(Lead):
         self._over_t = over_t
         self._ham_dl = ham_dl
         self._over_dl = over_dl
-        self._energy = None
         self._mu = mu
         self._temp = temp
         self._delta = delta
@@ -254,12 +253,6 @@ class PhysicalLead(Lead):
         #different energy point)
         self._sigma = None
 
-    def set_energy(self, energy):
-        """Set energy point"""
-        if energy != self._energy:
-            self._energy = energy
-            self._sigma = None
-
     def set_mu(self, mu):
         """Set a chemical potential, for nonequilibrium self energy"""
         self._mu = mu
@@ -267,72 +260,6 @@ class PhysicalLead(Lead):
     def set_temp(self, temp):
         """Set temperature, for nonequilibrium self energy"""
         self._temp = temp
-
-    def do_invsurfgreen(self, tol=defaults.surfgreen_tol):
-        """Calculate the INVERSE of surface green's function
-        by means of decimation
-        algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
-        two-dimensional Hamiltonian at surfacesPhys. Rev.B 28 4397.
-
-        Note: from ASE implementation"""
-
-        self._delta
-        if self._particle == "fermion":
-            z = self._energy + self._delta * 1j
-        elif self._particle == "boson":
-            z = self._energy * self._energy + self._delta * 1j
-        #TODO: Verify this!!
-        v_00 = z * self._over.H - self._ham.H
-        v_11 = v_00.copy()
-        v_10 = z * self._over_t - self._ham_t
-        v_01 = z * self._over_t.H - self._ham_t.H
-        delta = tol + 1
-        while delta > tol:
-            a = np.linalg.solve(v_11, v_01)
-            b = np.linalg.solve(v_11, v_10)
-            v_01_dot_b = np.dot(v_01, b)
-            v_00 -= v_01_dot_b
-            v_11 -= np.dot(v_10, a)
-            v_11 -= v_01_dot_b
-            v_01 = -np.dot(v_01, a)
-            v_10 = -np.dot(v_10, b)
-            delta = abs(v_01).max()
-
-        return v_00
-
-    def _do_sigma(self):
-        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
-        if self._particle == "fermion":
-            z = self._energy + self._delta * 1j
-        elif self._particle == "boson":
-            z = self._energy * self._energy + self._delta * 1j
-        tau_dl = z * self._over_dl - self._ham_dl
-        a_dl = np.linalg.solve(self.do_invsurfgreen(), tau_dl)
-        tau_ld = z * self._over_dl.T.conj() - self._ham_dl.T.conj()
-        self._sigma = np.dot(tau_ld, a_dl)
-
-        return self._sigma
-
-    def get_sigma_gr(self):
-        """Calculate the Sigma greater"""
-        assert(not self._mu is None)
-        if self._particle == "fermion":
-            return ((1.0 - stats.fermi(self._energy, self._mu, temppot=self._temp))
-                * (-1j) * self.get_gamma())
-        elif self._particle == "boson":
-            return ((stats.bose(self._energy, self._mu, temppot=self._temp) +
-                     1.0) * (-1j) * self.get_gamma())
-
-    def get_sigma_lr(self):
-        """Calculate the Sigma lesser"""
-        assert(not self._mu is None)
-        if self._particle == "fermion":
-            return (stats.fermi(self._energy, self._mu, temppot=self._temp) *
-                    1j * self.get_gamma())
-        elif self._particle == "boson":
-            return ((stats.bose(self._energy, self._mu, temppot=self._temp)) * 
-                    (-1j) * self.get_gamma())
-            
 
     def get_inscattering(self):
         """Calculate the inscattering Sigma (Datta notation)"""
