@@ -1,0 +1,6 @@
+There's some huge mass to fix:
+
+1) The way you do all the Green's stuff for phonons is wrong
+
+2) You don't really pass the optional parameters to the base class constructors.
+This is very dangerous

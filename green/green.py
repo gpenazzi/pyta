@@ -65,6 +65,7 @@ class Green:
                         lead.get_sigma_lr()))
         self._green_lr = self.get_eqgreen() * sigma_lr * self.get_eqgreen().H
 
+
         return self._green_lr
 
     def add_lead(self, lead):

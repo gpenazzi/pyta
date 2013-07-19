@@ -350,8 +350,8 @@ class PhysicalLeadFermion(PhysicalLead):
     def get_sigma_gr(self):
         """Calculate the Sigma greater"""
         assert(not self._mu is None)
-        return ((1.0 - stats.fermi(self._energy, self._mu, temppot=self._temp))
-                * (-1j) * self.get_gamma())
+        return ((stats.fermi(self._energy, self._mu, temppot=self._temp) - 1.0)
+                * (1j) * self.get_gamma())
 
     def get_sigma_lr(self):
         """Calculate the Sigma lesser"""
@@ -379,12 +379,14 @@ class PhysicalLeadPhonon(PhysicalLead):
     def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
                  over_t=None, over_dl=None, mu=None, temp=0.0,
                  particle="fermion", delta=defaults.delta):
-
+        over = over
+        temp = temp
         PhysicalLead.__init__(self, name, ham, ham_t, ham_dl, 
-                position, over=None, over_t=None, over_dl=None, mu=None, 
+                position, over=over, over_t=None, over_dl=None, mu=None, 
                 temp=0.0, delta=defaults.delta)
 
         self._freq = None
+        print("over", self._over)
     
     def set_freq(self, freq):
         """Set frequency point"""
