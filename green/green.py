@@ -1,9 +1,10 @@
 import numpy as np
 import pyta.core.defaults as defaults
 
+#Some general purpose function that I use often combined with this stuff
 def decorate(n, pos, mat):
-    """Returned a nxn square decorated matrix where the matrix is placed
-    according to lead position"""
+    """Returned a nxn square decorated matrix mat where the matrix is placed
+    starting from index pos"""
     if mat.shape == (n, n):
         return mat
     else:
@@ -16,32 +17,18 @@ def decorate(n, pos, mat):
 
 class Green:
     """A class for equilibrium Green's function"""
-    def __init__(self, ham, over=None, delta=defaults.delta, particle=
-            "fermion"):
-        """EqGreen is initialized by specifying an Hamiltonian as numpy.matrix.
-        Optionally, overlap and imaginary delta can be specified."""
-
-        assert(type(ham) == np.matrixlib.defmatrix.matrix)
-        if over:
-            assert(type(over) == np.matrixlib.defmatrix.matrix)
-        self._ham = ham
-        self._n = len(self._ham)
-        if over is None:
-            self._over = np.matrix(np.eye(self._n))
-        self._leads = dict()
-
-        self._active_leads = None
+    def __init__(self):
+        """Base class constructor only invoked by derived classes."""
 
         #Internal variables
+        self._active_leads = None
+        self._leads = dict()
+
+        #Internal variables subject to refresh
         self._eqgreen = None
         self._green_gr = None
         self._green_lr = None
 
-    def get_ham(self):
-        return self._ham
-
-    def get_over(self):
-        return self._over
 
     def do_green_gr(self):
         """Calculate equilibrium Green's function"""
@@ -116,9 +103,23 @@ class GreenFermion(Green):
     """Build and manage Green's function for Fermions. Only the method which
     differentiate fermions from other particles are reimplemented here"""
 
-    def __init__(self, ham, over=None, delta=defaults.delta):
-        
-        Green.__init__(self, ham, over=over, delta=defaults.delta)
+    def __init__(self, ham, over=None):
+        """GreenFermion is initialized by specifying an Hamiltonian as numpy.matrix.
+        Optionally, overlap can be specified.
+        If overlap is not specified, an orthogonal basis is assumed."""
+
+        Green.__init__()
+
+        #Input and defaults
+        assert(type(ham) == np.matrixlib.defmatrix.matrix)
+        if over:
+            assert(type(over) == np.matrixlib.defmatrix.matrix)
+        self._ham = ham
+        self._n = len(self._ham)
+        if over is None:
+            self._over = np.matrix(np.eye(self._n))
+
+        #Internal variables
         self._energy = None
 
     def set_energy(self, energy):
@@ -150,9 +151,25 @@ class GreenPhonon(Green):
     """Build and manage Green's function for phonons. Only the method which
     differentiate phonons from other particles are reimplemented here"""
     
-    def __init__(self, ham, over=None, delta=defaults.delta):
-        Green.__init__(self, ham, over=over, delta=defaults.delta)
+    def __init__(self, spring, mass=None):
+        """GreenPhonon is initialized by specifying a coupling spring constant
+        matrix as numpy.matrix.
+        Optionally, masses can be specified.
+        Masses must be specified as a diagonal numpy.matrix
+        If masses are not specified, an identity matrix is assumed."""
 
+        Green.__init__(self)
+
+        #Input and defaults
+        assert(type(spring) == np.matrixlib.defmatrix.matrix)
+        if mass:
+            assert(type(spring) == np.matrixlib.defmatrix.matrix)
+        self._spring = spring
+        self._n = len(self._spring)
+        if mass is None:
+            self._mass = np.matrix(np.eye(self._n))
+
+        #Internal variables 
         self._freq = None
 
     def set_freq(self, freq):
@@ -168,12 +185,12 @@ class GreenPhonon(Green):
 
     def do_eqgreen(self):
         """Calculate equilibrium Green's function"""
-        es_h = self._freq * self._freq * self._over - self._ham
+        tmp = self._freq * self._freq * self._mass - self._spring
             
         for key in self._active_leads:
             lead = self._leads[key]
-            es_h = es_h - decorate(self._n, lead.get_position(),
+            tmp = tmp - decorate(self._n, lead.get_position(),
                                    lead.get_sigma())
-        self._eqgreen = es_h.I
+        self._eqgreen = tmp.I
 
         return self._eqgreen

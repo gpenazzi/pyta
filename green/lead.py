@@ -196,12 +196,14 @@ class MCDephasing(Lead):
 class PhysicalLead(Lead):
     """A class derived from Lead for the description of physical contacts"""
 
-    def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
-                 over_t=None, over_dl=None, mu=None, temp=0.0,
-                 particle="fermion", delta=defaults.delta):
+    def __init__(self, name, position, mu=None, temp=0.0,
+                 delta=defaults.delta):
         """A PhysicalLead object describe a semi-infinite periodic lead
         within the Open Boundary
-        Steady State picture. The following quantities must be specified:
+        Steady State picture. 
+        Derived class for Fermion and Bosons are implemented, this base class
+        should not be explicitely instanced.
+        The following quantities must be specified:
 
         ham (np.matrix): Hamiltonian for a single layer
         over (np.matrix), optional: Overlap for a single layer
@@ -214,44 +216,23 @@ class PhysicalLead(Lead):
         mu (float): chemical potential
         We always mean by convention the
         coupling device-contact, i.e. Hdc"""
-        self._ham = ham
-        self._over = over
-        self._pl_size = None
-        self._size = None
-        self._ham_t = ham_t
-        self._over_t = over_t
-        self._ham_dl = ham_dl
-        self._over_dl = over_dl
+
+        #Input variables
         self._mu = mu
         self._temp = temp
-        self._delta = delta
-        self._particle = particle
-        Lead.__init__(self, name, position, delta)
 
-        assert(type(ham) == np.matrixlib.defmatrix.matrix)
-        if over:
-            assert(type(over) == np.matrixlib.defmatrix.matrix)
-        self._ham = ham
-        #PL size n x n
-        self._pl_size = self._ham.shape[0]
-        #H must be a square matrix
-        assert(self._ham.shape[0] == self._ham.shape[1])
-        if not over:
-            self._over = np.matrix(np.eye(self._pl_size))
-        self._ham_t = ham_t
-        #Interaction layer size tn x tm
-        self._size = self._ham_t.shape[0]
-        if not over_t:
-            self._over_t = np.matrix(np.zeros(self._ham_t.shape))
-        if not over_dl:
-            self._over_dl = np.matrix(np.zeros(self._ham_dl.shape))
-        self._delta = delta
+        tmp_delta = delta
+        Lead.__init__(self, name, position, delta=tmp_delta)
 
         #These variables are set to none if they have not been calculated,
         #or set to
         #none if something changed and their value is not valid anymore (es.
         #different energy point)
         self._sigma = None
+
+        #These must be assigned by derived classes
+        self._pl_size = None
+        self._size = None
 
     def set_mu(self, mu):
         """Set a chemical potential, for nonequilibrium self energy"""
@@ -260,21 +241,6 @@ class PhysicalLead(Lead):
     def set_temp(self, temp):
         """Set temperature, for nonequilibrium self energy"""
         self._temp = temp
-
-    def get_inscattering(self):
-        """Calculate the inscattering Sigma (Datta notation)"""
-        assert(not self._mu is None)
-        assert(self._article == "fermion")
-        return (stats.fermi(self._energy, self._mu, temppot=self._temp) *
-                            self.get_gamma())
-
-    def get_outscattering(self):
-        """Calculate the outscattering Sigma (Datta notation)"""
-        assert(not self._mu is None)
-        assert(self._article == "fermion")
-        if self._particle == "fermion":
-            return ((1.0 - stats.fermi(self._energy, self._mu,
-                     temppot=self._temp)) * self.get_gamma())
 
     def get_sigma(self):
         if self._sigma is None:
@@ -295,12 +261,56 @@ class PhysicalLeadFermion(PhysicalLead):
     the case of Fermion Green's functions"""
     def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
                  over_t=None, over_dl=None, mu=None, temp=0.0,
-                 particle="fermion", delta=defaults.delta):
+                 delta=defaults.delta):
+        """
+        The following quantities must be specified:
 
-        PhysicalLead.__init__(self, name, ham, ham_t, ham_dl, 
-                position, over=None, over_t=None, over_dl=None, mu=None, 
-                temp=0.0, delta=defaults.delta)
+        ham (np.matrix): Hamiltonian for a single layer
+        over (np.matrix), optional: Overlap for a single layer
+        ham_t (np.matrix): coupling matrix between single layers
+        over_t (np.matrix): overlap in the coupling block between single
+        layers.If none, it's set tozero
+        ham_dl (np.matrix): coupling between lead and device
+        over_lld (np.matrix): overlap in device-lead coupling
+        position (int): index of interacting device layer
+        mu (float): chemical potential
+        We always mean by convention the
+        coupling device-contact, i.e. Hdc"""
+        
+        tmp_mu = mu
+        tmp_temp = temp
+        tmp_delta = delta
+        PhysicalLead.__init__(self, name, position, mu=tmp_mu, 
+                temp=tmp_temp, delta=tmp_delta)
 
+        #Input variables
+        self._ham = ham
+        self._over = over
+        self._ham_t = ham_t
+        self._over_t = over_t
+        self._ham_dl = ham_dl
+        self._over_dl = over_dl
+        #PL size n x n
+        self._pl_size = self._ham.shape[0]
+        #Interaction layer size tn x tm
+        self._size = self._ham_t.shape[0]
+
+        #Some check
+        assert(type(ham) == np.matrixlib.defmatrix.matrix)
+        if over:
+            assert(type(over) == np.matrixlib.defmatrix.matrix)
+        #H must be a square matrix
+        assert(self._ham.shape[0] == self._ham.shape[1])
+
+        #Set defaults
+        if not over:
+            self._over = np.matrix(np.eye(self._pl_size))
+        if not over_t:
+            self._over_t = np.matrix(np.zeros(self._ham_t.shape))
+        if not over_dl:
+            self._over_dl = np.matrix(np.zeros(self._ham_dl.shape))
+
+        #Local variables
         self._energy = None
     
     def set_energy(self, energy):
@@ -376,17 +386,37 @@ class PhysicalLeadFermion(PhysicalLead):
 class PhysicalLeadPhonon(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
-    def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
-                 over_t=None, over_dl=None, mu=None, temp=0.0,
-                 particle="fermion", delta=defaults.delta):
-        over = over
-        temp = temp
-        PhysicalLead.__init__(self, name, ham, ham_t, ham_dl, 
-                position, over=over, over_t=None, over_dl=None, mu=None, 
-                temp=0.0, delta=defaults.delta)
+    def __init__(self, name, spring, spring_t, spring_dl, position, mass=None,
+                 temp=0.0,delta=defaults.delta):
 
+        tmp_temp = temp
+        tmp_mu = 0.0
+        tmp_delta = delta
+        PhysicalLead.__init__(self, name, position, mu=tmp_mu, 
+                temp=tmp_temp, delta=tmp_delta)
+
+        #Local variable
         self._freq = None
-        print("over", self._over)
+        
+        #Input variables
+        self._spring = spring
+        self._mass = mass
+        self._spring_t = spring_t
+        self._spring_dl = spring_dl
+        #PL size n x n
+        self._pl_size = self._ham.shape[0]
+        #Interaction layer size tn x tm
+        self._size = self._ham_t.shape[0]
+
+        #Some checks
+        assert(type(spring) == np.matrixlib.defmatrix.matrix)
+        if mass:
+            assert(type(over) == np.matrixlib.defmatrix.matrix)
+        self._ham = ham
+        #H must be a square matrix
+        assert(self._ham.shape[0] == self._ham.shape[1])
+        if not mass:
+            self._mass = np.matrix(np.eye(self._pl_size))
     
     def set_freq(self, freq):
         """Set frequency point"""
@@ -408,10 +438,10 @@ class PhysicalLeadPhonon(PhysicalLead):
         self._delta
         z = self._freq * self._freq + self._delta * 1j
         #TODO: Verify this!!
-        v_00 = z * self._over.H - self._ham.H
+        v_00 = z * self._mass.H - self._spring.H
         v_11 = v_00.copy()
-        v_10 = z * self._over_t - self._ham_t
-        v_01 = z * self._over_t.H - self._ham_t.H
+        v_10 = z - self._spring_t
+        v_01 = z - self._spring_t.H
         delta = tol + 1
         while delta > tol:
             a = np.linalg.solve(v_11, v_01)
@@ -429,7 +459,7 @@ class PhysicalLeadPhonon(PhysicalLead):
     def _do_sigma(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self._freq * self._freq + self._delta * 1j
-        tau_dl = z * self._over_dl - self._ham_dl
+        tau_dl = z * self._mass - self._spring_dl
         a_dl = np.linalg.solve(self.do_invsurfgreen(), tau_dl)
         tau_ld = z * self._over_dl.T.conj() - self._ham_dl.T.conj()
         self._sigma = np.dot(tau_ld, a_dl)
