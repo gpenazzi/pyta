@@ -161,8 +161,10 @@ class GreenPhonon(Green):
         Green.__init__(self)
 
         #Input and defaults
+        self._spring = spring
+        self._mass = mass
         assert(type(spring) == np.matrixlib.defmatrix.matrix)
-        if mass:
+        if not (mass is None):
             assert(type(spring) == np.matrixlib.defmatrix.matrix)
         self._spring = spring
         self._n = len(self._spring)

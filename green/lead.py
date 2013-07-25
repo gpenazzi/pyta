@@ -7,7 +7,7 @@ class Lead:
     """A base class for managing and building up real and virtual leads
     (inscattering and outscattering sources)."""
 
-    def __init__(self, name, position, delta=defaults.delta):
+    def __init__(self, name, position):
         """A name to associate to the lead is always needed (e.g. 'left',
         'phonon')
         position (int): index of interacting device layer"""
@@ -203,15 +203,6 @@ class PhysicalLead(Lead):
         Steady State picture. 
         Derived class for Fermion and Bosons are implemented, this base class
         should not be explicitely instanced.
-        The following quantities must be specified:
-
-        ham (np.matrix): Hamiltonian for a single layer
-        over (np.matrix), optional: Overlap for a single layer
-        ham_t (np.matrix): coupling matrix between single layers
-        over_t (np.matrix): overlap in the coupling block between single
-        layers.If none, it's set tozero
-        ham_dl (np.matrix): coupling between lead and device
-        over_lld (np.matrix): overlap in device-lead coupling
         position (int): index of interacting device layer
         mu (float): chemical potential
         We always mean by convention the
@@ -220,9 +211,9 @@ class PhysicalLead(Lead):
         #Input variables
         self._mu = mu
         self._temp = temp
-
-        tmp_delta = delta
-        Lead.__init__(self, name, position, delta=tmp_delta)
+        self._delta = delta
+        
+        Lead.__init__(self, name, position)
 
         #These variables are set to none if they have not been calculated,
         #or set to
@@ -270,12 +261,15 @@ class PhysicalLeadFermion(PhysicalLead):
         ham_t (np.matrix): coupling matrix between single layers
         over_t (np.matrix): overlap in the coupling block between single
         layers.If none, it's set tozero
-        ham_dl (np.matrix): coupling between lead and device
-        over_lld (np.matrix): overlap in device-lead coupling
+        ham_ld (np.matrix): coupling between lead and device
+        over_ld (np.matrix): overlap in device-lead coupling
         position (int): index of interacting device layer
         mu (float): chemical potential
+
         We always mean by convention the
-        coupling device-contact, i.e. Hdc"""
+        coupling device-contact, i.e. Hcd 
+        For the contact we specify coupling between first and second layer, i.e.
+        H10 (same for the overlap, if any)"""
         
         tmp_mu = mu
         tmp_temp = temp
@@ -288,8 +282,8 @@ class PhysicalLeadFermion(PhysicalLead):
         self._over = over
         self._ham_t = ham_t
         self._over_t = over_t
-        self._ham_dl = ham_dl
-        self._over_dl = over_dl
+        self._ham_ld = ham_dl
+        self._over_ld = over_dl
         #PL size n x n
         self._pl_size = self._ham.shape[0]
         #Interaction layer size tn x tm
@@ -307,8 +301,8 @@ class PhysicalLeadFermion(PhysicalLead):
             self._over = np.matrix(np.eye(self._pl_size))
         if not over_t:
             self._over_t = np.matrix(np.zeros(self._ham_t.shape))
-        if not over_dl:
-            self._over_dl = np.matrix(np.zeros(self._ham_dl.shape))
+        if not over_ld:
+            self._over_ld = np.matrix(np.zeros(self._ham_ld.shape))
 
         #Local variables
         self._energy = None
@@ -324,37 +318,38 @@ class PhysicalLeadFermion(PhysicalLead):
         by means of decimation
         algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
         two-dimensional Hamiltonian at surfacesPhys. Rev.B 28 4397.
+        This implementation follows Lopez-Sancho
 
-        Note: from ASE implementation"""
+        Note: modified from ASE implementation"""
 
         self._delta
         z = self._energy + self._delta * 1j
         #TODO: Verify this!!
-        v_00 = z * self._over.H - self._ham.H
-        v_11 = v_00.copy()
-        v_10 = z * self._over_t - self._ham_t
-        v_01 = z * self._over_t.H - self._ham_t.H
+        d_00 = z * self._over.H - self._ham.H
+        d_11 = k_00.copy()
+        d_10 = z * self._over_t - self._ham_t
+        d_01 = d_10.H
         delta = tol + 1
         while delta > tol:
-            a = np.linalg.solve(v_11, v_01)
-            b = np.linalg.solve(v_11, v_10)
-            v_01_dot_b = np.dot(v_01, b)
-            v_00 -= v_01_dot_b
-            v_11 -= np.dot(v_10, a)
-            v_11 -= v_01_dot_b
-            v_01 = -np.dot(v_01, a)
-            v_10 = -np.dot(v_10, b)
-            delta = abs(v_01).max()
+            a = np.linalg.solve(d_11, d_01)
+            b = np.linalg.solve(d_11, d_10)
+            d_01_dot_b = np.dot(d_01, b)
+            d_00 -= d_01_dot_b
+            d_11 -= np.dot(d_10, a)
+            d_11 -= d_01_dot_b
+            d_01 = -np.dot(d_01, a)
+            d_10 = -np.dot(d_10, b)
+            delta = abs(d_01).max()
 
-        return v_00
+        return d_00
 
     def _do_sigma(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
-        z = self._energy + self._delta * 1j
-        tau_dl = z * self._over_dl - self._ham_dl
-        a_dl = np.linalg.solve(self.do_invsurfgreen(), tau_dl)
-        tau_ld = z * self._over_dl.T.conj() - self._ham_dl.T.conj()
-        self._sigma = np.dot(tau_ld, a_dl)
+        z = self._energy 
+        tau_ld = z * self._over_ld - self._ham_ld
+        a_ld = np.linalg.solve(self.do_invsurfgreen(), tau_ld)
+        tau_dl = z * self._over_ld.H - self._ham_ld.H
+        self._sigma = np.dot(tau_dl, a_ld)
         return self._sigma
 
     def get_sigma_gr(self):
@@ -386,7 +381,7 @@ class PhysicalLeadFermion(PhysicalLead):
 class PhysicalLeadPhonon(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
-    def __init__(self, name, spring, spring_t, spring_dl, position, mass=None,
+    def __init__(self, name, spring, spring_t, spring_ld, position, mass=None,
                  temp=0.0,delta=defaults.delta):
 
         tmp_temp = temp
@@ -402,19 +397,18 @@ class PhysicalLeadPhonon(PhysicalLead):
         self._spring = spring
         self._mass = mass
         self._spring_t = spring_t
-        self._spring_dl = spring_dl
+        self._spring_ld = spring_ld
         #PL size n x n
-        self._pl_size = self._ham.shape[0]
+        self._pl_size = self._spring.shape[0]
         #Interaction layer size tn x tm
-        self._size = self._ham_t.shape[0]
+        self._size = self._spring_t.shape[0]
 
         #Some checks
         assert(type(spring) == np.matrixlib.defmatrix.matrix)
         if mass:
-            assert(type(over) == np.matrixlib.defmatrix.matrix)
-        self._ham = ham
+            assert(type(mass) == np.matrixlib.defmatrix.matrix)
         #H must be a square matrix
-        assert(self._ham.shape[0] == self._ham.shape[1])
+        assert(self._spring.shape[0] == self._spring.shape[1])
         if not mass:
             self._mass = np.matrix(np.eye(self._pl_size))
     
@@ -435,35 +429,32 @@ class PhysicalLeadPhonon(PhysicalLead):
         
         Note: frequencies are given in fs^-1, energies in eV"""
 
-        self._delta
         z = self._freq * self._freq + self._delta * 1j
         #TODO: Verify this!!
-        v_00 = z * self._mass.H - self._spring.H
-        v_11 = v_00.copy()
-        v_10 = z - self._spring_t
-        v_01 = z - self._spring_t.H
+        d_00 = z * self._mass - self._spring
+        d_11 = d_00.copy()
+        d_10 = - self._spring_t
+        d_01 = - self._spring_t.H
         delta = tol + 1
         while delta > tol:
-            a = np.linalg.solve(v_11, v_01)
-            b = np.linalg.solve(v_11, v_10)
-            v_01_dot_b = np.dot(v_01, b)
-            v_00 -= v_01_dot_b
-            v_11 -= np.dot(v_10, a)
-            v_11 -= v_01_dot_b
-            v_01 = -np.dot(v_01, a)
-            v_10 = -np.dot(v_10, b)
-            delta = abs(v_01).max()
-
-        return v_00
+            a = np.linalg.solve(d_11, d_01)
+            b = np.linalg.solve(d_11, d_10)
+            d_01_dot_b = np.dot(d_01, b)
+            d_00 -= d_01_dot_b
+            d_11 -= np.dot(d_10, a)
+            d_11 -= d_01_dot_b
+            d_01 = -np.dot(d_01, a)
+            d_10 = -np.dot(d_10, b)
+            delta = abs(d_01).max()
+        return d_00
 
     def _do_sigma(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
-        z = self._freq * self._freq + self._delta * 1j
-        tau_dl = z * self._mass - self._spring_dl
-        a_dl = np.linalg.solve(self.do_invsurfgreen(), tau_dl)
-        tau_ld = z * self._over_dl.T.conj() - self._ham_dl.T.conj()
-        self._sigma = np.dot(tau_ld, a_dl)
-
+        z = self._freq * self._freq
+        tau_ld = self._spring_ld
+        a_ld = np.linalg.solve(self.do_invsurfgreen(), tau_ld)
+        tau_dl = self._spring_ld.H
+        self._sigma = np.dot(tau_dl, a_ld)
         return self._sigma
 
     def get_sigma_gr(self):
