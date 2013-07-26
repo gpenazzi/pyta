@@ -108,7 +108,7 @@ class GreenFermion(Green):
         Optionally, overlap can be specified.
         If overlap is not specified, an orthogonal basis is assumed."""
 
-        Green.__init__()
+        Green.__init__(self)
 
         #Input and defaults
         assert(type(ham) == np.matrixlib.defmatrix.matrix)

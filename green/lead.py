@@ -250,8 +250,8 @@ class PhysicalLead(Lead):
 class PhysicalLeadFermion(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
-    def __init__(self, name, ham, ham_t, ham_dl, position, over=None,
-                 over_t=None, over_dl=None, mu=None, temp=0.0,
+    def __init__(self, name, ham, ham_t, ham_ld, position, over=None,
+                 over_t=None, over_ld=None, mu=0.0, temp=0.0,
                  delta=defaults.delta):
         """
         The following quantities must be specified:
@@ -282,8 +282,8 @@ class PhysicalLeadFermion(PhysicalLead):
         self._over = over
         self._ham_t = ham_t
         self._over_t = over_t
-        self._ham_ld = ham_dl
-        self._over_ld = over_dl
+        self._ham_ld = ham_ld
+        self._over_ld = over_ld
         #PL size n x n
         self._pl_size = self._ham.shape[0]
         #Interaction layer size tn x tm
@@ -326,7 +326,7 @@ class PhysicalLeadFermion(PhysicalLead):
         z = self._energy + self._delta * 1j
         #TODO: Verify this!!
         d_00 = z * self._over.H - self._ham.H
-        d_11 = k_00.copy()
+        d_11 = d_00.copy()
         d_10 = z * self._over_t - self._ham_t
         d_01 = d_10.H
         delta = tol + 1
