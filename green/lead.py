@@ -44,17 +44,17 @@ class Lead:
 class MRDephasing(Lead):
     """A Lead modelling Momentum relaxing dephasing"""
 
-    def __init__(self, name, deph, eqgreen=None, green_gr=None):
+    def __init__(self, name, deph, size = None, eqgreen=None, green_gr=None):
         """Only the name and dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
-    to get the self energies using set_eqgreen() and set_neqgreen()"""
+        to get the self energies using set_eqgreen() and set_neqgreen()"""
         position = 0
         Lead.__init__(self, name, position)
         self._sigma = None
         self._green_gr = green_gr
         self._eqgreen = eqgreen
         self._deph = deph
-        self._size = None
+        self._size = size
         self._sigma_gr = None
         self._sigma_lr = None
 
@@ -63,8 +63,12 @@ class MRDephasing(Lead):
         self._sigma = None
         self._sigma_gr = None
         self._sigma_lr = None
-        self._deph = deph
-
+        if type(deph) == np.ndarray:
+            assert(deph.size == self._size)
+            self._deph = deph
+        elif type(deph) == float:
+            assert(not (self._size is None))
+            
     def set_eqgreen(self, eqgreen):
         """Set an equilibrium Green's function"""
         self._sigma = None
@@ -87,22 +91,24 @@ class MRDephasing(Lead):
         """Calculate the retarded self energy"""
         assert(not self._eqgreen is None)
         tmp = np.matrix(np.eye(self._size), dtype=np.complex128)
-        np.fill_diagonal(tmp, self._eqgreen.diagonal())
-        self._sigma = tmp * self._deph
+        #Note: * is an elementwise operator for ndarray types 
+        np.fill_diagonal(tmp, np.multiply(self._eqgreen.diagonal(), self._deph))
+        self._sigma = tmp
+        print("sigma", self._sigma)
 
     def do_sigma_gr(self):
         """Calculate the retarded self energy"""
         assert(not self._green_gr is None)
         tmp = np.matrix(np.eye(self._size), dtype=np.complex128)
-        np.fill_diagonal(tmp, self._green_gr.diagonal())
-        self._sigma_gr = tmp * self._deph
+        np.fill_diagonal(tmp, np.multiply(self._green_gr.diagonal(), self._deph))
+        self._sigma_gr = tmp 
 
     def do_sigma_lr(self):
         """Calculate the retarded self energy"""
         assert(not self._green_lr is None)
         tmp = np.matrix(np.eye(self._size), dtype=np.complex128)
-        np.fill_diagonal(tmp, self._green_lr.diagonal())
-        self._sigma_lr = tmp * self._deph
+        np.fill_diagonal(tmp, np.multiply(self._green_lr.diagonal(), self._deph))
+        self._sigma_lr = tmp
 
     def get_sigma(self):
         if self._sigma is None:
