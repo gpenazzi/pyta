@@ -94,7 +94,6 @@ class MRDephasing(Lead):
         #Note: * is an elementwise operator for ndarray types 
         np.fill_diagonal(tmp, np.multiply(self._eqgreen.diagonal(), self._deph))
         self._sigma = tmp
-        print("sigma", self._sigma)
 
     def do_sigma_gr(self):
         """Calculate the retarded self energy"""
