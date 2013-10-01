@@ -192,7 +192,7 @@ class GreenPhonon(Green):
         """Calculate equilibrium Green's function"""
         tmp = self._freq * self._freq * self._mass - self._spring
             
-        for lead in leads:
+        for lead in self._leads:
             tmp = tmp - lead.get_sigma(resize = self._size)
         self._eqgreen = tmp.I
 

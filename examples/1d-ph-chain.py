@@ -31,17 +31,16 @@ spring_pl = np.matrix([0.0])
 spring_t = np.matrix([spring_constant])
 spring_dl = np.matrix([spring_constant])
 pos = 0
-left = pyta.green.PhysicalLeadPhonon("left", spring_pl, spring_t, spring_dl, pos,
+left = pyta.green.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl, 
         temp = 10.0)
 pos = n-1
-right = pyta.green.PhysicalLeadPhonon("right", spring_pl, spring_t, spring_dl,
-        pos, temp = 10.0)
+right = pyta.green.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl,
+        temp = 10.0)
 #Note: chemical potential is 0 by default
 
 #Add contacts to Green solver
-green_obj.add_lead(right)
-green_obj.add_lead(left)
-green_obj.set_active_leads(["left", "right"])
+leads = [left, right]
+green_obj.set_leads(leads)
 
 trans = np.zeros(freq_points)
 self_real = np.zeros(freq_points)
@@ -51,9 +50,9 @@ for ind, freq in enumerate(frequencies):
     green_obj.set_freq(freq)
     green = green_obj.get_eqgreen()
     #Caroli-Landauer
-    trans[ind] = (np.trace(pyta.green.decorate(n, 0, left.get_gamma()) * 
+    trans[ind] = (np.trace(left.get_gamma(resize = n) * 
                   green_obj.get_eqgreen() * 
-                  pyta.green.decorate(n, n-1,right.get_gamma()) * 
+                  right.get_gamma(resize = n) * 
                   green_obj.get_eqgreen().H))
     self_real[ind] = left.get_sigma().real[0,0]
     self_imag[ind] = left.get_sigma().imag[0,0]
