@@ -135,7 +135,7 @@ class GreenFermion(Green):
         es_h = self._energy * self._over - self._ham
             
         for lead in self._leads:
-            es_h = es_h - lead.get_sigma(resize = True)
+            es_h = es_h - lead.get_sigma(resize = self._size)
         self._eqgreen = es_h.I
 
         return self._eqgreen
