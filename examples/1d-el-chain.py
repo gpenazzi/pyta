@@ -31,16 +31,14 @@ ham_pl = np.matrix([onsite])
 t_pl = np.matrix([hopping_element])
 ham_dl = np.matrix([hopping_element])
 pos = 0
-left = pyta.green.PhysicalLeadFermion("left", ham_pl, t_pl, ham_dl, pos)
+left = pyta.green.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
 pos = n-1
-right = pyta.green.PhysicalLeadFermion("right", ham_pl, t_pl, ham_dl, pos)
+right = pyta.green.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
 #Note: chemical potential is 0 by default
 
 #Add contacts to Green solver
-green_obj.add_lead(right)
-green_obj.add_lead(left)
-green_obj.set_active_leads(["left", "right"])
-
+leads = [left, right]
+green_obj.set_leads(leads)
 trans = np.zeros(en_points)
 self_real = np.zeros(en_points)
 self_imag = np.zeros(en_points)
@@ -49,9 +47,10 @@ for ind, en in enumerate(energies):
     green_obj.set_energy(en)
     green = green_obj.get_eqgreen()
     #Caroli-Landauer
-    trans[ind] = (np.trace(pyta.green.decorate(n, 0, left.get_gamma()) * 
+    print(left.get_gamma(resize=n))
+    trans[ind] = (np.trace(left.get_gamma(resize=n) * 
                   green_obj.get_eqgreen() * 
-                  pyta.green.decorate(n, n-1,right.get_gamma()) * 
+                  right.get_gamma(resize=n) * 
                   green_obj.get_eqgreen().H))
     self_real[ind] = left.get_sigma().real[0,0]
     self_imag[ind] = left.get_sigma().imag[0,0]
