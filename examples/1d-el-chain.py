@@ -47,7 +47,6 @@ for ind, en in enumerate(energies):
     green_obj.set_energy(en)
     green = green_obj.get_eqgreen()
     #Caroli-Landauer
-    print(left.get_gamma(resize=n))
     trans[ind] = (np.trace(left.get_gamma(resize=n) * 
                   green_obj.get_eqgreen() * 
                   right.get_gamma(resize=n) * 
