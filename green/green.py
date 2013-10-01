@@ -28,7 +28,7 @@ class Green:
     def do_green_gr(self):
         """Calculate equilibrium Green's function"""
         sigma_gr = np.matrix(np.zeros((self._size, self._size), dtype=np.complex128))
-        for lead in leads:
+        for lead in self._leads:
             sigma_gr = sigma_gr + lead.get_sigma_gr(resize = self._size)
         self._green_gr = self.get_eqgreen() * sigma_gr * self.get_eqgreen().H
 
@@ -37,7 +37,7 @@ class Green:
     def do_green_lr(self):
         """Calculate equilibrium Green's function"""
         sigma_lr = np.matrix(np.zeros((self._size, self._size), dtype=np.complex128))
-        for lead in leads:
+        for lead in self._leads:
             sigma_lr = sigma_lr + lead.get_sigma_lr(resize = self._size)
         self._green_lr = self.get_eqgreen() * sigma_lr * self.get_eqgreen().H
 
@@ -126,9 +126,14 @@ class GreenFermion(Green):
             self._eqgreen = None
             self._green_lr = None
             self._green_gr = None
-            #Update energy point in all leads
+            #Update energy point in all leads where set_energy is defined
             for lead in self._leads:
-                lead.set_energy(energy)
+                try:
+                    lead.set_energy(energy)
+                except AttributeError:
+                    pass
+                else:
+                    lead.set_energy(energy)
 
     def do_eqgreen(self):
         """Calculate equilibrium Green's function"""
@@ -186,7 +191,12 @@ class GreenPhonon(Green):
             self._green_gr = None
             #Update energy point in all leads
             for lead in self._leads:
-                lead.set_freq(freq)
+                try:
+                    lead.set_freq(freq)
+                except AttributeError:
+                    pass
+                else:
+                    lead.set_freq(energy)
 
     def do_eqgreen(self):
         """Calculate equilibrium Green's function"""

@@ -57,7 +57,7 @@ class MRDephasing(Lead):
 
         #Independent variables
         #================================
-        assert(type(deph) == np.array)
+        assert(type(deph) == np.ndarray)
         self._deph = deph
         self._green_gr = green_gr
         self._eqgreen = eqgreen
@@ -72,7 +72,7 @@ class MRDephasing(Lead):
 
         #Base constructors 
         position = 0
-        size = deph.size()
+        size = deph.size
         Lead.__init__(self, position, size)
 
     def set_deph(self, deph):
