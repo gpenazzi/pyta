@@ -375,12 +375,6 @@ class PhysicalLeadFermion(PhysicalLead):
         self._sigma = np.dot(tau_dl, a_ld)
         return self._sigma
 
-    def _do_sigma_lr(self, resize = None):
-        """Calculate the Sigma lesser"""
-        assert(not self._mu is None)
-        self._sigma_lr = (stats.fermi(self._energy, self._mu, temppot=self._temp) *
-                    1j * self.get_gamma())
-
 
 class PhysicalLeadPhonon(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
@@ -467,12 +461,4 @@ class PhysicalLeadPhonon(PhysicalLead):
         tau_dl = self._spring_ld.H
         self._sigma = np.dot(tau_dl, a_ld)
         return self._sigma
-
-    def _do_sigma_lr(self):
-        """Calculate the Sigma lesser"""
-        assert(not self._mu is None)
-        energy = self._freq * consts.hbar_eV_fs
-        self._sigma_rl = ((stats.bose(energy, self._mu, temppot=self._temp)) * 
-                    (-1j) * self.get_gamma())
-
 
