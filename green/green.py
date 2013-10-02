@@ -196,7 +196,7 @@ class GreenPhonon(Green):
                 except AttributeError:
                     pass
                 else:
-                    lead.set_freq(energy)
+                    lead.set_freq(freq)
 
     def do_eqgreen(self):
         """Calculate equilibrium Green's function"""

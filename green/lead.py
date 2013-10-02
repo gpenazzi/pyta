@@ -104,7 +104,7 @@ class MRDephasing(Lead):
 
     def set_deph(self, deph):
         """Set a new dephasing parameter"""
-        assert(type(deph) == np.array)
+        assert(type(deph) == np.ndarray)
         assert(deph.size == self._size)
         self._sigma = None
         self._sigma_gr = None
