@@ -335,6 +335,8 @@ class PhysicalLeadFermion(PhysicalLead):
         if energy != self._energy:
             self._energy = energy
             self._sigma = None
+            self._sigma_lr = None
+            self._sigma_gr = None
     
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
         """Calculate the INVERSE of surface green's function
@@ -434,7 +436,9 @@ class PhysicalLeadPhonon(PhysicalLead):
         if freq != self._freq:
             self._freq = freq
             self._sigma = None
-    
+            self._sigma_lr = None
+            self._sigma_lr = None
+
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
         """Calculate the INVERSE of surface green's function
         by means of decimation
@@ -485,5 +489,5 @@ class PhysicalLeadPhonon(PhysicalLead):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
         energy = self._freq * consts.hbar_eV_fs
-        self._sigma_gr = ((stats.bose(energy, self._mu, temppot=self._temp) +
-                    1.0) * (-1j) * self.get_gamma())
+        self._sigma_gr = ((stats.bose(energy, self._mu, temppot=self._temp)
+                    + 1.0) * (-1j) * self.get_gamma())
