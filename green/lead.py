@@ -381,6 +381,12 @@ class PhysicalLeadFermion(PhysicalLead):
         self._sigma_lr = (stats.fermi(self._energy, self._mu, temppot=self._temp) *
                     1j * self.get_gamma())
 
+    def _do_sigma_gr(self, resize = None):
+        """Calculate the Sigma lesser"""
+        assert(not self._mu is None)
+        self._sigma_gr = ((stats.fermi(self._energy, self._mu, temppot=self._temp) 
+                    - 1.0) * 1j * self.get_gamma())
+
 
 class PhysicalLeadPhonon(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
@@ -472,7 +478,12 @@ class PhysicalLeadPhonon(PhysicalLead):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
         energy = self._freq * consts.hbar_eV_fs
-        self._sigma_rl = ((stats.bose(energy, self._mu, temppot=self._temp)) * 
+        self._sigma_lr = ((stats.bose(energy, self._mu, temppot=self._temp)) * 
                     (-1j) * self.get_gamma())
 
-
+    def _do_sigma_gr(self):
+        """Calculate the Sigma lesser"""
+        assert(not self._mu is None)
+        energy = self._freq * consts.hbar_eV_fs
+        self._sigma_gr = ((stats.bose(energy, self._mu, temppot=self._temp) +
+                    1.0) * (-1j) * self.get_gamma())
