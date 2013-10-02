@@ -31,14 +31,48 @@ class Lead:
         self._size = size
         #=====================================
 
-    def get_name(self):
-        """Return a unique name for the lead"""
-        return self._name
+        #Dependent variables
+        #Note: not all the dependent variables are set in runtime as a member
+        #some subclass calculates them on-the-fly directly during every get
+        #(gamma is a typical example gamma = sigma - sigma.H)
+        #================================
+        self._sigma = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+        self._gamma = None
+        #================================
+    
+    def get_sigma(self, resize = None):
+        if self._sigma is None:
+            self._do_sigma()
+        if not resize is None:
+            return resize_matrix(resize, self._position, self._sigma)
+        else:
+            return self._sigma
 
-    def get_position(self):
-        assert(not self._position is None)
-        return self._position
+    def get_sigma_gr(self, resize = None):
+        if self._sigma_gr is None:
+            self._do_sigma_gr()
+        if not resize is None:
+            return resize_matrix(resize, self._position, self._sigma_gr)
+        else:
+            return self._sigma_gr
 
+    def get_sigma_lr(self, resize = None):
+        if self._sigma_lr is None:
+            self._do_sigma_lr()
+        if not resize is None:
+            return resize_matrix(resize, self._position, self._sigma_lr)
+        else:
+            return self._sigma_lr
+
+    def get_gamma(self, resize = None):
+        if self._gamma is None:
+            self._do_gamma()
+        if not resize is None:
+            return resize_matrix(resize, self._position, self._gamma)
+        else:
+            return self._gamma
 
 class MRDephasing(Lead):
     """A Lead modelling Momentum relaxing dephasing"""
@@ -61,13 +95,6 @@ class MRDephasing(Lead):
         self._deph = deph
         self._green_gr = green_gr
         self._eqgreen = eqgreen
-        #================================
-
-        #Dependent variables
-        #================================
-        self._sigma = None
-        self._sigma_gr = None
-        self._sigma_lr = None
         #================================
 
         #Base constructors 
@@ -102,7 +129,7 @@ class MRDephasing(Lead):
         self._green_lr = green_lr
         self._size = self._green_lr.shape[0]
 
-    def do_sigma(self):
+    def _do_sigma(self):
         """Calculate the retarded self energy"""
         assert(not self._eqgreen is None)
         tmp = np.matrix(np.eye(self._size), dtype=np.complex128)
@@ -110,43 +137,19 @@ class MRDephasing(Lead):
         np.fill_diagonal(tmp, np.multiply(self._eqgreen.diagonal(), self._deph))
         self._sigma = tmp
 
-    def do_sigma_gr(self):
+    def _do_sigma_gr(self):
         """Calculate the retarded self energy"""
         assert(not self._green_gr is None)
         tmp = np.matrix(np.eye(self._size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(self._green_gr.diagonal(), self._deph))
         self._sigma_gr = tmp 
 
-    def do_sigma_lr(self):
+    def _do_sigma_lr(self):
         """Calculate the retarded self energy"""
         assert(not self._green_lr is None)
         tmp = np.matrix(np.eye(self._size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(self._green_lr.diagonal(), self._deph))
         self._sigma_lr = tmp
-
-    def get_sigma(self, resize = None):
-        if self._sigma is None:
-            self.do_sigma()
-        if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma)
-        else:
-            return self._sigma
-
-    def get_sigma_gr(self, resize = None):
-        if self._sigma_gr is None:
-            self.do_sigma_gr()
-        if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma_gr)
-        else:
-            return self._sigma_gr
-
-    def get_sigma_lr(self, resize = None):
-        if self._sigma_lr is None:
-            self.do_sigma_lr()
-        if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma_lr)
-        else:
-            return self._sigma_lr
 
 
 class MCDephasing(Lead):
@@ -171,12 +174,6 @@ class MCDephasing(Lead):
         self._green_gr = green_gr
         self._eqgreen = eqgreen
         self._green_lr = green_lr
-        #================================
-
-        #Dependent variables
-        #================================
-        self._sigma = None
-        self._sigma_gr = None
         #================================
 
         #Base constructors 
@@ -205,44 +202,20 @@ class MCDephasing(Lead):
         self._green_gr = green_gr
         self._size = self._green_gr.shape[0]
 
-    def do_sigma(self):
+    def _do_sigma(self):
         """Calculate the retarded self energy"""
         assert(not self._eqgreen is None)
         self._sigma = self._eqgreen * self._deph
 
-    def do_sigma_gr(self):
+    def _do_sigma_gr(self):
         """Calculate the greater self energy"""
         assert(not self._green_gr is None)
         self._sigma_gr = self._green_gr * self._deph
 
-    def do_sigma_lr(self):
+    def _do_sigma_lr(self):
         """Calculate the greater self energy"""
         assert(not self._green_lr is None)
         self._sigma_lr = self._green_gr.H * self._deph
-
-    def get_sigma(self, resize = None):
-        if self._sigma is None:
-            self.do_sigma()
-        if not resize is none:
-            return resize_matrix(resize, self._position, self._sigma)
-        else:
-            return self._sigma
-
-    def get_sigma_gr(self, resize = None):
-        if self._sigma_gr is None:
-            self.do_sigma_gr()
-        if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma_gr)
-        else:
-            return self._sigma_gr
-
-    def get_sigma_lr(self, resize = None):
-        if self._sigma_lr is None:
-            self.do_sigma_lr()
-        if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma_lr)
-        else:
-            return self._sigma_lr
 
 
 class PhysicalLead(Lead):
@@ -275,9 +248,6 @@ class PhysicalLead(Lead):
         self._delta = delta
         #================================
         
-        #Dependent variables
-        self._sigma = None
-
         #Base constructors
         Lead.__init__(self, position, size)
 
@@ -289,15 +259,7 @@ class PhysicalLead(Lead):
         """Set temperature, for nonequilibrium self energy"""
         self._temp = temp
 
-    def get_sigma(self, resize = None):
-        if self._sigma is None:
-            self._do_sigma()
-        if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma)
-        else:
-            return self._sigma
-
-    def get_gamma(self, resize = False):
+    def get_gamma(self, resize = None):
         "Return \Gamma=j(\Sigma^{r} - \Sigma^{a})"""
         gamma = 1.j * (self.get_sigma() - self.get_sigma().H)
         if not resize is None:
@@ -374,7 +336,7 @@ class PhysicalLeadFermion(PhysicalLead):
             self._energy = energy
             self._sigma = None
     
-    def do_invsurfgreen(self, tol=defaults.surfgreen_tol):
+    def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
         """Calculate the INVERSE of surface green's function
         by means of decimation
         algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
@@ -408,31 +370,11 @@ class PhysicalLeadFermion(PhysicalLead):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self._energy 
         tau_ld = z * self._over_ld - self._ham_ld
-        a_ld = np.linalg.solve(self.do_invsurfgreen(), tau_ld)
+        a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
         tau_dl = z * self._over_ld.H - self._ham_ld.H
         self._sigma = np.dot(tau_dl, a_ld)
         return self._sigma
 
-    def get_sigma_gr(self, resize = None):
-        """Calculate the Sigma greater"""
-        assert(not self._mu is None)
-        sigma_gr = ((stats.fermi(self._energy, self._mu, temppot=self._temp) - 1.0)
-                * (1j) * self.get_gamma())
-        if not resize is None:
-            return resize_matrix(resize, self._position, sigma_gr)
-        else:
-            return sigma_gr
-        
-    def get_sigma_lr(self, resize = None):
-        """Calculate the Sigma lesser"""
-        assert(not self._mu is None)
-        sigma_lr = (stats.fermi(self._energy, self._mu, temppot=self._temp) *
-                    1j * self.get_gamma())
-        if not resize is None:
-            return resize_matrix(resize, self._position, sigma_lr)
-        else:
-            return sigma_lr
-            
 
 class PhysicalLeadPhonon(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
@@ -481,7 +423,7 @@ class PhysicalLeadPhonon(PhysicalLead):
             self._freq = freq
             self._sigma = None
     
-    def do_invsurfgreen(self, tol=defaults.surfgreen_tol):
+    def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
         """Calculate the INVERSE of surface green's function
         by means of decimation
         algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
@@ -515,30 +457,8 @@ class PhysicalLeadPhonon(PhysicalLead):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self._freq * self._freq
         tau_ld = self._spring_ld
-        a_ld = np.linalg.solve(self.do_invsurfgreen(), tau_ld)
+        a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
         tau_dl = self._spring_ld.H
         self._sigma = np.dot(tau_dl, a_ld)
         return self._sigma
-
-    def get_sigma_gr(self, resize = None):
-        """Calculate the Sigma greater"""
-        assert(not self._mu is None)
-        energy = self._freq * consts.hbar_eV_fs
-        sigma_gr = ((stats.bose(energy, self._mu, temppot=self._temp) +
-                 1.0) * (-1j) * self.get_gamma())
-        if not resize is None:
-            return resize(resize, self._position, sigma_gr)
-        else:
-            return sigma_gr
-
-    def get_sigma_lr(self, resize = None):
-        """Calculate the Sigma lesser"""
-        assert(not self._mu is None)
-        energy = self._freq * consts.hbar_eV_fs
-        sigma_lr = ((stats.bose(energy, self._mu, temppot=self._temp)) * 
-                    (-1j) * self.get_gamma())
-        if not resize is None:
-            return resize(resize, self._position, sigma_lr)
-        else:
-            return sigma_lr
 
