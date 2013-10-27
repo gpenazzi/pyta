@@ -326,7 +326,7 @@ class PhysicalLeadFermion(PhysicalLead):
         #============================
    
         #Base constructor
-        size = self._ham_t.shape[0]
+        size = self._ham_ld.shape[0]
         PhysicalLead.__init__(self, position, size, pl_size, mu=mu, 
                 temp=temp, delta=delta)
 
@@ -426,7 +426,7 @@ class PhysicalLeadPhonon(PhysicalLead):
         #===================================
 
         #Base constructor
-        size = self._spring_t.shape[0]
+        size = self._spring_ld.shape[0]
         mu = 0.0
         PhysicalLead.__init__(self, position, size, pl_size, mu=mu, 
                 temp=temp, delta=delta)
@@ -491,3 +491,77 @@ class PhysicalLeadPhonon(PhysicalLead):
         energy = self._freq * consts.hbar_eV_fs
         self._sigma_gr = ((stats.bose(energy, self._mu, temppot=self._temp)
                     + 1.0) * (-1j) * self.get_gamma())
+
+
+class WideBandFermion(PhysicalLead):
+    """A class derived from Lead for the description of physical contacts, in
+    the case of Fermion Green's functions"""
+    def __init__(self, 
+            #Constants
+            position, dos, ham_ld, over_ld=None,
+            #Independent variables
+                 energy = 0.0, mu=0.0, temp=0.0, delta=defaults.delta):
+        """
+        The following quantities must be specified:
+
+        dos (float): Density of states of the lead (ev^-1atom^-1)
+        over_ld (np.matrix): overlap in device-lead coupling
+        position (int): index of interacting device layer
+        mu (float): chemical potential
+
+        We always mean by convention the
+        coupling device-contact, i.e. Hcd 
+        For the contact we specify coupling between first and second layer, i.e.
+        H10 (same for the overlap, if any)"""
+        
+
+        #Constants
+        #==========================================================
+        self._dos = dos
+        self._ham_ld = ham_ld
+        self._over_ld = over_ld
+
+        #Set defaults
+        pl_size = self._ham_ld.shape[0]
+        if not over_ld:
+            self._over_ld = np.matrix(np.zeros(self._ham_ld.shape))
+        #===========================================================
+
+        #Independent variables
+        #============================
+        self._energy = energy
+        #============================
+   
+        #Base constructor
+        size = self._ham_ld.shape[0]
+        PhysicalLead.__init__(self, position, size, pl_size, mu=mu, 
+                temp=temp, delta=delta)
+
+    def set_energy(self, energy):
+        """Set energy point"""
+        if energy != self._energy:
+            self._energy = energy
+            self._sigma = None
+            self._sigma_lr = None
+            self._sigma_gr = None
+    
+    def _do_sigma(self):
+        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        z = self._energy 
+        tau_ld = z * self._over_ld - self._ham_ld
+        a_ld = 1j * 2.0 * np.pi * np.dot(tau_ld, self._dos)
+        tau_dl = z * self._over_ld.H - self._ham_ld.H
+        self._sigma = np.dot(tau_dl, a_ld)
+        return self._sigma
+
+    def _do_sigma_lr(self, resize = None):
+        """Calculate the Sigma lesser"""
+        assert(not self._mu is None)
+        self._sigma_lr = (stats.fermi(self._energy, self._mu, temppot=self._temp) *
+                    1j * self.get_gamma())
+
+    def _do_sigma_gr(self, resize = None):
+        """Calculate the Sigma lesser"""
+        assert(not self._mu is None)
+        self._sigma_gr = ((stats.fermi(self._energy, self._mu, temppot=self._temp) 
+                    - 1.0) * 1j * self.get_gamma())
