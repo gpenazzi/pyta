@@ -9,4 +9,7 @@ k_eV_K -> Boltzmann constant (kb) in eV*K^{-1}"""
 kb_eV__K = 8.6173324e-5
 
 #hbar in eV*fs
-hbar_eV_fs = 6.58211928e-1
+hbar_eV_fs = 1.054
+
+#hbar in eV*s
+hbar_eV_s = 1.054e-15
