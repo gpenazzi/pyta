@@ -2,14 +2,52 @@ import numpy as np
 
 """A module to build slater type orbitals and perform related operations"""
 
+#Dictionary of coefficients for DFTB sets
+#key: (Type, ll, <coefficient set>)
+# where coefficient set is either "pow" or "exp"
+mio_0_1_so = dict()
+
+mio_0_1_so[('H', 0, "exp")] = np.array([5.0e-01, 1.0e+00, 2.0e+00])
+mio_0_1_so[('H', 0, "pow")] = np.ndarray(shape=(3,3))
+mio_0_1_so[('H', 0, "pow")][0,:] = np.array(
+        [-2.276520915935000e+00, 2.664106182380000e-01, -7.942749361803000e-03])
+mio_0_1_so[('H', 0, "pow")][1,:] = np.array(
+    [1.745369301500000e+01, -5.422967929262000e+00, 9.637082466960000e-01])
+mio_0_1_so[('H', 0, "pow")][2,:] = np.array(
+    [-1.270143472317000e+01, -6.556866359468000e+00, -8.530648663672999e-01])
+
+mio_0_1_so[('C', 0, "exp")] = np.array([5.0e-01, 1.14e+00, 2.62e+00, 6.0e+00])
+mio_0_1_so[('C', 0, "pow")] = np.ndarray(shape=(4,3))
+mio_0_1_so[('C', 0, "pow")][0,:] = np.array(
+    [-5.171232639696000e-01, 6.773263954720000e-02, -2.225281827092000e-03])
+mio_0_1_so[('C', 0, "pow")][1,:] = np.array(
+    [1.308444510734000e+01, -5.212739736338000e+00, 7.538242674175000e-01])
+mio_0_1_so[('C', 0, "pow")][2,:] = np.array(
+    [-1.215154761544000e+01, -9.329029568076001e+00, -2.006616061528000e-02])
+mio_0_1_so[('C', 0, "pow")][3,:] = np.array(
+    [-7.500610238649000e+00, -4.778512145112000e+00, -6.236333225369000e+00])
+
+mio_0_1_so[('C', 1, "exp")] = np.array([5.0e-01, 1.14e+00, 2.62e+00, 6.0e+00])
+mio_0_1_so[('C', 1, "pow")] = np.ndarray(shape=(4,3))
+mio_0_1_so[('C', 1, "pow")][0,:] = np.array(
+    [-2.302004373076000e-02, 2.865521221155000e-03, -8.868108742828000e-05])
+mio_0_1_so[('C', 1, "pow")][1,:] = np.array(
+    [3.228406687797000e-01, -1.994592260910000e-01, 3.517324557778000e-02])
+mio_0_1_so[('C', 1, "pow")][2,:] = np.array(
+    [1.328563289838000e+01, -7.908233500176000e+00, 6.945422441225000e+00])
+mio_0_1_so[('C', 1, "pow")][3,:] = np.array(
+    [-5.876689745586000e+00, -1.246833563825000e+01, -2.019487289358000e+01])
+
+
+
 def realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
     """Calculate the value of a Real Tesseral harmonic in a give point coord"""
 
     value = 0.0
     rr = np.linalg.norm(coord - origin)
-    xx = coord[0] - origin
-    yy = coord[1] - origin
-    zz = coord[2] - origin
+    xx = coord[0] - origin[0]
+    yy = coord[1] - origin[1]
+    zz = coord[2] - origin[2]
 
     
     if ll == 0:
@@ -33,9 +71,9 @@ def grad_realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
 
     value = np.zeros(3)
     rr = np.linalg.norm(coord - origin)
-    xx = coord[0] - origin
-    yy = coord[1] - origin
-    zz = coord[2] - origin
+    xx = coord[0] - origin[0]
+    yy = coord[1] - origin[1]
+    zz = coord[2] - origin[2]
 
     if ll == 0:
         value = np.array([0.0, 0.0, 0.0])
@@ -60,7 +98,7 @@ def grad_realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
 
 class RadialFunction:
     """A class storing data far the radial function of the slater orbital"""
-    def __init__(self, ll, origin, exp_coeff, pow_coeff, cutoff = 3.0):
+    def __init__(self, ll, origin, exp_coeff, pow_coeff, cutoff = 5.0):
         """ ll: angular quantum number
             coord: where the radial function is centered
             exp_coeff: array with exponential coefficients
@@ -140,7 +178,7 @@ class RadialFunction:
 
 
 
-class Storbital:
+class SlaterType:
     """A class to build slater type orbitals and perform related operations"""
     def __init__(self, ll, mm, exp_coeff, pow_coeff, res = 0.1, cutoff = 3.0):
         """ ll: angular quantum number
@@ -175,8 +213,24 @@ class Storbital:
             self._npoints, 3))
 
 
-    def do_cache_grid(self):
-        """Build a cached version of the real space orbital and its gradient"""
+    def do_cache_grid(self, save=None, load=None):
+        """Build a cached version of the real space orbital and its gradient.
+        Save and load must be a 2-pla with two filenames, one for orbital and
+        one for gradient.
+        Cached values are always calculated with the origin in zero, to reuse
+        grid from same orbitals centered on different origins. 
+        The correct translation are taken into account in get methods."""
+
+        print("Caching orbital", self._ll, self._mm)
+
+        if load is None:
+            print("Loading cached orbitals")
+        else:
+            self._so_grid = np.load(load[0])
+            self._sograd_grid = np.load(load[1])
+            return 0
+
+        zero_origin = np.zeros(3)
 
         for i in range(self._npoints):
             for j in range(self._npoints):
@@ -184,16 +238,24 @@ class Storbital:
                     coord = np.array([self._x_grid[i], self._x_grid[j],
                         self._x_grid[k]]) 
                     self._so_grid[i,j,k] = self._radfunc.get_value(coord) * \
-                        realtessy(self._ll, self._mm, coord, self._origin)
+                        realtessy(self._ll, self._mm, coord, zero_origin)
 
                     self._sograd_grid[i,j,k,:] = \
                         self._radfunc.get_grad(coord) * \
                         realtessy(self._ll, 
-                                self._mm, coord, self._origin) + \
+                                self._mm, coord, zero_origin) + \
                         self._radfunc.get_value(coord) * \
                         grad_realtessy(self._ll, self._mm, 
-                                coord, self._origin) 
+                                coord, zero_origin) 
 
+        if save is None:
+            return 0
+        else:
+            self._so_grid.dump(save[0])
+            self._sograd_grid.dump(save[1]) 
+            return 0
+
+        print("Done")
     
     def _get_grid_coord(self, coord):
         """Gives the i,j,k coordinates on the grid for a given real space
@@ -204,20 +266,19 @@ class Storbital:
     coord."""
 
         cutoff = self._cutoff
-        if (coord[0] < cutoff or coord[1] < cutoff or coord[2] < cutoff
+        if (coord[0] < -cutoff or coord[1] < -cutoff or coord[2] < -cutoff
                 or coord[0] > cutoff or coord[1] > cutoff or
                 coord[2] > cutoff):
 
-            return np.aray([-1, -1, -1])
+            return (np.array([-1, -1, -1], dtype=int), 0.0)
 
         else:
 
             shift_coord = coord + np.array([cutoff, cutoff, cutoff])
-            grid_coord = np.ceil(shift_coord / self._res)
+            grid_coord = np.array(np.trunc(shift_coord / self._res), dtype=int)
             dist = coord - grid_coord * self._res
 
             return (grid_coord, dist)
-
 
 
     def get_value(self, coord):
@@ -230,10 +291,10 @@ class Storbital:
 
             return 0.0
 
-        (grid_coord, dist) = self._get_grid_coord(coord)
+        grid_coord, dist = self._get_grid_coord(coord - self._origin)
         #JUST TO BE EASY I NOW RETURN THE LEFT VALUE BUT I'LL NEED TO
         #INTERPOLATE
-        val = self._so_grid[grid_coord]
+        val = self._so_grid[tuple(grid_coord)]
 
         return val
 
@@ -248,12 +309,34 @@ class Storbital:
 
             return 0.0
 
-        (grid_coord, dist) = self._get_grid_coord(coord)
+        grid_coord, dist = self._get_grid_coord(coord - self._origin)
         #JUST TO BE EASY I NOW RETURN THE LEFT VALUE BUT I'LL NEED TO
         #INTERPOLATE
-        val = self._sograd_grid[grid_coord]
+        val = self._sograd_grid[tuple(grid_coord)]
 
         return val
 
 
+    def dump_to_cube(self, filename = 'orb.cube'):
+        """Write orbital to cube file """
+        with open(filename, 'w') as outfile:
+                outfile.write('SLATER ORBITAL CUBE FILE \n')
+                outfile.write('Created with PYTA \n')
+                outfile.write('{} {} {} {} \n'.format(1, self._origin[0],
+                    self._origin[1], self._origin[2]))
+                outfile.write('{} {} {} {}\n'.format(self._npoints, 
+                    self._res, 0.0, 0.0))
+                outfile.write('{} {} {} {}\n'.format(self._npoints, 
+                    0.0, self._res, 0.0))
+                outfile.write('{} {} {} {}\n'.format(self._npoints, 
+                    0.0, 0.0, self._res))
+                outfile.write('{} {} {} {} {} \n'.format(1, 0.0, 0.0, 0.0, 0.0))
+                for ii in range(self._npoints):
+                    for jj in range(self._npoints):
+                        for kk in range(self._npoints):
+                            outfile.write('{}  '.format(
+                                self._so_grid[ii, jj, kk]))
+                
+
+                
         
