@@ -139,6 +139,7 @@ class RadialFunction:
                         exp_val * rr)
         return val
 
+
     def get_grad(self, coord):
         """ Calculate the value of the gradient of the radial function on a 
         given point.
@@ -180,7 +181,8 @@ class RadialFunction:
 
 class SlaterType:
     """A class to build slater type orbitals and perform related operations"""
-    def __init__(self, ll, mm, exp_coeff, pow_coeff, res = 0.1, cutoff = 3.0):
+    def __init__(self, ll, mm, exp_coeff, pow_coeff, res = 0.1, cutoff = 3.0,
+            save=None, load=None):
         """ ll: angular quantum number
             coord: where the radial function is centered
             exp_coeff: array with exponential coefficients
@@ -212,6 +214,8 @@ class SlaterType:
         self._sograd_grid = np.zeros((self._npoints, self._npoints,
             self._npoints, 3))
 
+        self.do_cache_grid(save=save, load=load)
+
 
     def do_cache_grid(self, save=None, load=None):
         """Build a cached version of the real space orbital and its gradient.
@@ -222,7 +226,7 @@ class SlaterType:
         The correct translation are taken into account in get methods."""
 
         print("Caching orbital", self._ll, self._mm)
-
+        
         if load is None:
             print("Loading cached orbitals")
         else:
@@ -339,4 +343,7 @@ class SlaterType:
                 
 
                 
+    def get_cutoff(self):
+        """Return orbital cutoff"""
+        return self._cutoff
         
