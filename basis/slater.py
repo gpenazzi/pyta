@@ -1,4 +1,5 @@
 import numpy as np
+import pyta.grid.cubicgrid
 
 """A module to build slater type orbitals and perform related operations"""
 
@@ -39,7 +40,6 @@ mio_0_1_so[('C', 1, "pow")][3,:] = np.array(
     [-5.876689745586000e+00, -1.246833563825000e+01, -2.019487289358000e+01])
 
 
-
 def realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
     """Calculate the value of a Real Tesseral harmonic in a give point coord"""
 
@@ -49,7 +49,6 @@ def realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
     yy = coord[1] - origin[1]
     zz = coord[2] - origin[2]
 
-    
     if ll == 0:
         value = 0.2820947917738782
     elif ll == 1:
@@ -194,8 +193,8 @@ class SlaterType:
         self._mm = mm
         self._cutoff = cutoff
 
-        # Orbital and gradient are always built centered on zero. The methods
-        # to retrieve values take care of translation
+        # Orbital and gradient are always built centered on zero. 
+
 
         self._origin = np.zeros(3)
 
@@ -204,15 +203,14 @@ class SlaterType:
         self._radfunc = RadialFunction(ll, self._origin, exp_coeff, pow_coeff, cutoff
                 = 3.0)
 
-        self._npoints = int(cutoff / res * 2)
-        #I specify only a coordinate because the grid is cubic, y_grid and
-        #z_grid are identical
-        self._x_grid = np.linspace(-cutoff, cutoff, self._npoints)
-        self._res = res
-
-        self._so_grid = np.zeros((self._npoints, self._npoints, self._npoints))
-        self._sograd_grid = np.zeros((self._npoints, self._npoints,
-            self._npoints, 3))
+        #Build the associated cubic grid
+        self._grid = pyta.grid.cubicgrid.CubicGrid((self._origin - cutoff,
+            self._origin + cutoff), res)
+        
+        self._so_grid = np.zeros((self._grid.get_npoints()[0],
+            self._grid.get_npoints()[1], self._grid.get_npoints()[2]))
+        self._sograd_grid = np.zeros((self._grid.get_npoints()[0],
+            self._grid.get_npoints()[1], self._grid.get_npoints()[2], 3))
 
         self.do_cache_grid(save=save, load=load)
 
@@ -236,11 +234,12 @@ class SlaterType:
 
         zero_origin = np.zeros(3)
 
-        for i in range(self._npoints):
-            for j in range(self._npoints):
-                for k in range(self._npoints):
-                    coord = np.array([self._x_grid[i], self._x_grid[j],
-                        self._x_grid[k]]) 
+        for i in range(self._grid.get_npoints()[0]):
+            for j in range(self._grid.get_npoints()[1]):
+                for k in range(self._grid.get_npoints()[2]):
+                    coord = np.array([self._grid.get_grid()[0][i], 
+                        self._grid.get_grid()[1][j],
+                        self._grid.get_grid()[2][k]]) 
                     self._so_grid[i,j,k] = self._radfunc.get_value(coord) * \
                         realtessy(self._ll, self._mm, coord, zero_origin)
 
@@ -261,87 +260,29 @@ class SlaterType:
 
         print("Done")
     
-    def _get_grid_coord(self, coord):
-        """Gives the i,j,k coordinates on the grid for a given real space
-        coordinate (round down). [-1, -1, -1] means that we are out of 
-        cutoff.
-        
-        Return the grid coordinates and the distance between the exact point and
-    coord."""
-
-        cutoff = self._cutoff
-        if (coord[0] < -cutoff or coord[1] < -cutoff or coord[2] < -cutoff
-                or coord[0] > cutoff or coord[1] > cutoff or
-                coord[2] > cutoff):
-
-            return (np.array([-1, -1, -1], dtype=int), 0.0)
-
-        else:
-
-            shift_coord = coord + np.array([cutoff, cutoff, cutoff])
-            grid_coord = np.array(np.trunc(shift_coord / self._res), dtype=int)
-            dist = coord - grid_coord * self._res
-
-            return (grid_coord, dist)
-
 
     def get_value(self, coord):
         """Get the orbital value at a given point coord"""
 
-        cutoff = self._cutoff
-        if (coord[0] < -cutoff or coord[1] < -cutoff or coord[2] < -cutoff
-                or coord[0] > cutoff or coord[1] > cutoff or
-                coord[2] > cutoff):
-
+        if not self._grid.is_inside(coord - self._origin):
             return 0.0
 
-        grid_coord, dist = self._get_grid_coord(coord - self._origin)
-        #JUST TO BE EASY I NOW RETURN THE LEFT VALUE BUT I'LL NEED TO
-        #INTERPOLATE
-        val = self._so_grid[tuple(grid_coord)]
+        return self._grid.get_value(coord - self._origin, self._so_grid)
 
-        return val
-
-
+        
     def get_grad(self, coord):
         """Get the orbital value at a given point coord"""
 
-        cutoff = self._cutoff
-        if (coord[0] < -cutoff or coord[1] < -cutoff or coord[2] < -cutoff
-                or coord[0] > cutoff or coord[1] > cutoff or
-                coord[2] > cutoff):
+        if not self._grid.is_inside(coord - self._origin):
+            return np.zeros(3)
 
-            return 0.0
-
-        grid_coord, dist = self._get_grid_coord(coord - self._origin)
-        #JUST TO BE EASY I NOW RETURN THE LEFT VALUE BUT I'LL NEED TO
-        #INTERPOLATE
-        val = self._sograd_grid[tuple(grid_coord)]
-
-        return val
+        return self._grid.get_value(coord - 
+                self._origin, self._sograd_grid)
 
 
     def dump_to_cube(self, filename = 'orb.cube'):
         """Write orbital to cube file """
-        with open(filename, 'w') as outfile:
-                outfile.write('SLATER ORBITAL CUBE FILE \n')
-                outfile.write('Created with PYTA \n')
-                outfile.write('{} {} {} {} \n'.format(1, self._origin[0],
-                    self._origin[1], self._origin[2]))
-                outfile.write('{} {} {} {}\n'.format(self._npoints, 
-                    self._res, 0.0, 0.0))
-                outfile.write('{} {} {} {}\n'.format(self._npoints, 
-                    0.0, self._res, 0.0))
-                outfile.write('{} {} {} {}\n'.format(self._npoints, 
-                    0.0, 0.0, self._res))
-                outfile.write('{} {} {} {} {} \n'.format(1, 0.0, 0.0, 0.0, 0.0))
-                for ii in range(self._npoints):
-                    for jj in range(self._npoints):
-                        for kk in range(self._npoints):
-                            outfile.write('{}  '.format(
-                                self._so_grid[ii, jj, kk]))
-                
-
+        self._grid.dump_to_cube(self._so_grid, filename, header = 'Orbital')
                 
     def get_cutoff(self):
         """Return orbital cutoff"""
