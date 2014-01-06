@@ -14,7 +14,7 @@ class CurrentDensity:
                 weight,  #weight for current operator (density matrix)
                 res = 0.05, #grid resolution, the other parameter are calculated
                            #internally
-                tol = 8.0 # Lateral Grid tolerance in Angstrom
+                tol = 3.0 # Lateral Grid tolerance in Angstrom
                 ):
 
         #Constants
@@ -59,27 +59,27 @@ class CurrentDensity:
         j_orb = self._orb[self._orbind[jj]]
         i_coord = coord - self._orb_r[ii,:]
         j_coord = coord - self._orb_r[jj,:]
-
-        #NOTE: imlemented for real wavefunctions
-        if (i_coord > i_orb.get_cutoff()).any() or (j_coord >
-                j_orb.get_cutoff()).any():
-            tmp_j_mag = 0.0
-            tmp_j_vec = np.zeros(3)
-            return (tmp_j_mag, tmp_j_vec)
+        #NOTE: implemented for real wavefunctions
+        if ((i_coord > i_orb.get_cutoff()).any() or  
+            (j_coord > j_orb.get_cutoff()).any() or   
+            (i_coord < -i_orb.get_cutoff()).any() or 
+            (j_coord < -j_orb.get_cutoff()).any()):
+            return np.zeros(3)
         else:
             val = i_orb.get_value(i_coord) * j_orb.get_grad(j_coord) - \
                     i_orb.get_grad(i_coord) * j_orb.get_value(j_coord)
-            return (np.linalg.norm(val), val)
+            print('returning',val, i_coord, j_coord)
+            return val
 
 
     def do_j(self):
         """Calculate current density"""
 
-        #UGLY UNEFFICIENT: ONLY FOR DEBUG
-
+        #UGLY UNEFFICIENT: ONLY FOR TESTING
+        
         #Cycle on all coordinates
         for ii, xx in enumerate(self._grid.get_grid()[0]):
-            print("grid line", ii, " of ", len(self._grid.get_grid()[0]))
+            print("grid line", ii, " of ", len(self._grid.get_grid()[0]), xx)
             for jj, yy in enumerate(self._grid.get_grid()[1]):
                 for kk, zz in enumerate(self._grid.get_grid()[2]):
 
@@ -93,12 +93,11 @@ class CurrentDensity:
                         if i_orb == j_orb:
                             continue
                         weight = self._weight.data[ii_nnz]
-
                         coord = np.array([xx,yy,zz])
-                        tmp_j_mag, tmp_j_vec = weight * \
-                            self._do_currdensop(i_orb, j_orb, coord)
+                        tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord)
                         self._j_vec[ii, jj, kk, :] += tmp_j_vec
-                        self._j_mag[ii, jj, kk] += tmp_j_mag
+                        self._j_mag[ii, jj, kk] += np.linalg.norm(tmp_j_vec)
+        print('Done')
         return
 
     def dump_to_cube(self, filename = 'jmag.cube'):
