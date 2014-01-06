@@ -74,6 +74,7 @@ class CubicGrid:
                     rmin[ind] = val
                 if val > rmax[ind]:
                     rmax[ind] = val
+        print('before tol', rmax, rmin)
         if type(tol) == float:
             rmin = rmin - np.array([tol, tol, tol])
             rmax = rmax + np.array([tol, tol, tol])
@@ -81,6 +82,7 @@ class CubicGrid:
             rmin = rmin - tol
             rmax = rmax + tol
             
+        print('after tol', rmax, rmin)
         return (rmin, rmax)
 
     def _makegrid(self):
@@ -93,6 +95,7 @@ class CubicGrid:
                     num=self._npoints[ind], endpoint=True, retstep=True))
             tmp_grid, tmp_step = np.linspace(self._rmin[ind], self._rmax[ind],
                     num=self._npoints[ind], endpoint=True, retstep=True)
+            print('tmp_grid is', tmp_grid)
             self._grid.append(tmp_grid)
             self._step.append(tmp_step)
         self._nnodes = 1
