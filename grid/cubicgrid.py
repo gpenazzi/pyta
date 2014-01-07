@@ -38,7 +38,6 @@ class CubicGrid:
         else:
             self._res = res
 
-            
         #Number of nodes in x,y,z direction
         self._npoints = np.zeros(self._dim, dtype = int)
         #Note: grid is a list of arrays, not a ndarray because it's not

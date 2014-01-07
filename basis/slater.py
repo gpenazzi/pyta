@@ -3,6 +3,10 @@ import pyta.grid.cubicgrid
 
 """A module to build slater type orbitals and perform related operations"""
 
+
+#General cutoff to decide when r is zero
+near_cutoff = 1e-2
+
 #Dictionary of coefficients for DFTB sets
 #key: (Type, ll, <coefficient set>)
 # where coefficient set is either "pow" or "exp"
@@ -40,7 +44,7 @@ mio_0_1_so[('C', 1, "pow")][3,:] = np.array(
     [-5.876689745586000e+00, -1.246833563825000e+01, -2.019487289358000e+01])
 
 
-def realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
+def realtessy(ll, mm, coord, origin, near_cutoff = near_cutoff):
     """Calculate the value of a Real Tesseral harmonic in a give point coord"""
 
     value = 0.0
@@ -64,7 +68,7 @@ def realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
     return value
 
 
-def grad_realtessy(ll, mm, coord, origin, near_cutoff = 1e-2):
+def grad_realtessy(ll, mm, coord, origin, near_cutoff = near_cutoff):
     """Calculate the value of the gradient of a Real 
     Tesseral harmonic in a give point coord"""
 
@@ -148,7 +152,8 @@ class RadialFunction:
         rr = np.linalg.norm(coord - self._origin)
         if rr > self._cutoff:
             return 0.0
-
+        if rr < near_cutoff:
+            rr = near_cutoff
 
         ll = self._ll
         val = np.zeros(3)
@@ -165,8 +170,10 @@ class RadialFunction:
         teta = np.arccos((coord[2] - self._origin[2]) / rr)
         if np.isnan(teta): 
             teta = 0.0
-        psi = np.arctan((coord[1] - self._origin[1]) / (coord[0] -
-            self._origin[0]))
+        tmp_x = (coord[0] - self._origin[0])
+        if tmp_x < near_cutoff:
+            tmp_x = near_cutoff
+        psi = np.arctan((coord[1] - self._origin[1]) / tmp_x)
         if np.isnan(psi):
             psi = 0.0
 

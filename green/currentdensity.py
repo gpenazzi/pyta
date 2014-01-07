@@ -96,6 +96,7 @@ class CurrentDensity:
                         tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord)
                         self._j_vec[ii, jj, kk, :] += tmp_j_vec
 
+
         for ii, xx in enumerate(self._grid.get_grid()[0]):
             for jj, yy in enumerate(self._grid.get_grid()[1]):
                 for kk, zz in enumerate(self._grid.get_grid()[2]):
@@ -111,10 +112,11 @@ class CurrentDensity:
         #For any nonzero density matrix couple define maximum and minimum
         #ii,jj,kk and then make a dictionary, cycle on the items and on
         #subblocks
-        local_cutoff = 2.0 
+        local_cutoff = 1.5 
         for ii_nnz in range(self._weight.nnz):
-            if np.mod(ii_nnz, 50) == 0:
+            if np.mod(ii_nnz, 100) == 0:
                 print('nnz', ii_nnz)
+            weight = self._weight.data[ii_nnz]
             i_orb = self._weight.row[ii_nnz]
             j_orb = self._weight.col[ii_nnz]
             if i_orb == j_orb:
@@ -148,11 +150,11 @@ class CurrentDensity:
                         self._grid.get_grid()[1][ind_min[1]:ind_max[1]+1]):
                     for kk, zz in enumerate(
                             self._grid.get_grid()[2][ind_min[2]:ind_max[2]+1]):
-
+                        
                         coord = np.array([xx, yy, zz])
-                        weight = self._weight.data[ii_nnz]
                         tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord)
-                        self._j_vec[ii, jj, kk, :] += tmp_j_vec
+                        self._j_vec[ii + ind_min[0], jj + ind_min[1], kk +
+                                ind_min[2], :] += tmp_j_vec
 
         for ii, xx in enumerate(self._grid.get_grid()[0]):
             for jj, yy in enumerate(self._grid.get_grid()[1]):
@@ -162,10 +164,29 @@ class CurrentDensity:
         print('Done')
         return
 
-    def dump_to_cube(self, filename = 'jmag.cube'):
-        """Write orbital to cube file """
+    def surface_flux(self, axis=2):
+        j_axis = np.zeros(self._grid.get_npoints()[axis])
+        if axis==2:
+            for kk, zz in enumerate(self._grid.get_grid()[2]):
+                for ii, xx in enumerate(self._grid.get_grid()[0]):
+                    for jj, yy in enumerate(self._grid.get_grid()[1]):
+                        j_axis[kk] = j_axis[kk] + self._j_vec[ii, jj, kk, 2]
+         
+        print('j_axis', j_axis)
+        return j_axis
 
-        self._grid.dump_to_cube(self._j_mag, filename=filename, 
+
+    def dump_to_cube(self, var = None, filename = 'jmag.cube'):
+        """Write orbital to cube file """
+        if var is None:
+            var = self._j_mag
+
+        self._grid.dump_to_cube(var, filename=filename, 
                 header='Current Density Magnitude')
         return
 
+    def get_j_mag(self):
+        return self._j_mag
+
+    def get_j_vec(self):
+        return self._j_vec
