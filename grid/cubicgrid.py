@@ -54,7 +54,6 @@ class CubicGrid:
         #Prepare the grid
         self._makegrid()
 
-
     def _positions_to_boundary(self, positions, tol):
         """Define the grid boundaries starting from positions array.
         Position array can be a Nx3 numpy.ndarray or a ase.atoms.Atoms object.
@@ -74,7 +73,7 @@ class CubicGrid:
                     rmin[ind] = val
                 if val > rmax[ind]:
                     rmax[ind] = val
-        print('before tol', rmax, rmin)
+
         if type(tol) == float:
             rmin = rmin - np.array([tol, tol, tol])
             rmax = rmax + np.array([tol, tol, tol])
@@ -82,7 +81,7 @@ class CubicGrid:
             rmin = rmin - tol
             rmax = rmax + tol
             
-        print('after tol', rmax, rmin)
+
         return (rmin, rmax)
 
     def _makegrid(self):
@@ -91,11 +90,9 @@ class CubicGrid:
         for ind in range(self._dim):
             self._npoints[ind] = int((self._rmax[ind] - 
                 self._rmin[ind]) / self._res[ind]) + 1
-            print(np.linspace(self._rmin[ind], self._rmax[ind],
-                    num=self._npoints[ind], endpoint=True, retstep=True))
             tmp_grid, tmp_step = np.linspace(self._rmin[ind], self._rmax[ind],
                     num=self._npoints[ind], endpoint=True, retstep=True)
-            print('tmp_grid is', tmp_grid)
+
             self._grid.append(tmp_grid)
             self._step.append(tmp_step)
         self._nnodes = 1
@@ -126,7 +123,7 @@ class CubicGrid:
 
     def get_grid_coord(self, coord):
         """Gives the i,j,k coordinates on the grid for a given real space
-        coordinate (round down). [-1, -1, -1] means that we are out of 
+        coordinate (round down). None means that we are out of 
         boundaries.
         
         Return the grid coordinates and the distance between the exact point and
@@ -134,7 +131,7 @@ class CubicGrid:
 
         for ii in range(self._dim):
             if coord[ii] < self._rmin[0] or coord[ii] > self._rmax[ii]:
-                return (np.array([-1, -1, -1], dtype=int), 0.0)
+                return (None, 0.0)
 
         shift_coord = coord - self._rmin
         grid_coord = np.array(np.trunc(shift_coord / self._step), dtype=int)
@@ -172,6 +169,14 @@ class CubicGrid:
             self._meshgrid = np.meshgrid(self._grid[0], self._grid[1],
                     self._grid[2], indexing='xy')
         return self._meshgrid
+
+    def get_minmax(self):
+        """Return minimum and maximum coordinates"""
+        return (self._rmin, self._rmax)
+
+    def get_nnodes(self):
+        """Return the number of nodes"""
+        return self._nnodes
 
     def is_inside(self, coord):
         """True if coord is inside the grid, False otherwise"""
