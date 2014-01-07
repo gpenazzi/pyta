@@ -123,7 +123,8 @@ class CurrentDensity:
             j_storb = self._orb[self._orbind[j_orb]]
             i_coord = self._orb_r[i_orb,:]
             j_coord = self._orb_r[j_orb,:]
-            if (abs(i_coord - j_coord) > local_cutoff * 2.0).any():
+            if ((abs(i_coord - j_coord) > local_cutoff * 2.0).any() or
+                    np.linalg.norm(i_coord - j_coord) < 1e-3 ):
                 continue
             i_min_coord = i_coord - local_cutoff#i_storb.get_cutoff()
             j_min_coord = j_coord - local_cutoff#j_storb.get_cutoff()
