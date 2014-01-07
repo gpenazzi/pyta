@@ -130,7 +130,7 @@ class CubicGrid:
     coord."""
 
         for ii in range(self._dim):
-            if coord[ii] < self._rmin[0] or coord[ii] > self._rmax[ii]:
+            if coord[ii] < self._rmin[ii] or coord[ii] > self._rmax[ii]:
                 return (None, 0.0)
 
         shift_coord = coord - self._rmin
