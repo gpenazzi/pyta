@@ -68,7 +68,6 @@ class CurrentDensity:
         else:
             val = i_orb.get_value(i_coord) * j_orb.get_grad(j_coord) - \
                     i_orb.get_grad(i_coord) * j_orb.get_value(j_coord)
-            print('returning',val, i_coord, j_coord)
             return val
 
 
@@ -96,7 +95,69 @@ class CurrentDensity:
                         coord = np.array([xx,yy,zz])
                         tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord)
                         self._j_vec[ii, jj, kk, :] += tmp_j_vec
-                        self._j_mag[ii, jj, kk] += np.linalg.norm(tmp_j_vec)
+
+        for ii, xx in enumerate(self._grid.get_grid()[0]):
+            for jj, yy in enumerate(self._grid.get_grid()[1]):
+                for kk, zz in enumerate(self._grid.get_grid()[2]):
+                    self._j_mag[ii, jj, kk] = np.linalg.norm(self._j_vec[ii,
+                        jj, kk, :])
+        print('Done')
+        return
+    
+    def do_j_improved(self):
+        """Calculate current density"""
+
+        #FIND SOMETHING SMART HERE
+        #For any nonzero density matrix couple define maximum and minimum
+        #ii,jj,kk and then make a dictionary, cycle on the items and on
+        #subblocks
+        local_cutoff = 2.0 
+        for ii_nnz in range(self._weight.nnz):
+            if np.mod(ii_nnz, 50) == 0:
+                print('nnz', ii_nnz)
+            i_orb = self._weight.row[ii_nnz]
+            j_orb = self._weight.col[ii_nnz]
+            if i_orb == j_orb:
+                continue
+            i_storb = self._orb[self._orbind[i_orb]]
+            j_storb = self._orb[self._orbind[j_orb]]
+            i_coord = self._orb_r[i_orb,:]
+            j_coord = self._orb_r[j_orb,:]
+            if (abs(i_coord - j_coord) > local_cutoff * 2.0).any():
+                continue
+            i_min_coord = i_coord - local_cutoff#i_storb.get_cutoff()
+            j_min_coord = j_coord - local_cutoff#j_storb.get_cutoff()
+            i_max_coord = i_coord + local_cutoff#i_storb.get_cutoff()
+            j_max_coord = j_coord + local_cutoff#j_storb.get_cutoff() 
+            cpl_min_coord = np.array([max(i_min_coord[0], j_min_coord[0]),
+                max(i_min_coord[1], j_min_coord[1]),  
+                max(i_min_coord[2], j_min_coord[2])])
+            cpl_max_coord = np.array([min(i_max_coord[0], j_max_coord[0]),
+                min(i_max_coord[1], j_max_coord[1]),  
+                min(i_max_coord[2], j_max_coord[2])])
+            ind_min, foo = self._grid.get_grid_coord(cpl_min_coord)
+            if ind_min is None:
+                ind_min = np.zeros(3, dtype=int)
+            ind_max, foo = self._grid.get_grid_coord(cpl_max_coord)
+            if ind_max is None:
+                ind_max = self._grid.get_npoints() - 1
+            for ii, xx in enumerate(
+                    self._grid.get_grid()[0][ind_min[0]:ind_max[0]+1]):
+                for jj, yy in enumerate(
+                        self._grid.get_grid()[1][ind_min[1]:ind_max[1]+1]):
+                    for kk, zz in enumerate(
+                            self._grid.get_grid()[2][ind_min[2]:ind_max[2]+1]):
+
+                        coord = np.array([xx, yy, zz])
+                        weight = self._weight.data[ii_nnz]
+                        tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord)
+                        self._j_vec[ii, jj, kk, :] += tmp_j_vec
+
+        for ii, xx in enumerate(self._grid.get_grid()[0]):
+            for jj, yy in enumerate(self._grid.get_grid()[1]):
+                for kk, zz in enumerate(self._grid.get_grid()[2]):
+                    self._j_mag[ii, jj, kk] = np.linalg.norm(self._j_vec[ii,
+                        jj, kk, :])
         print('Done')
         return
 
