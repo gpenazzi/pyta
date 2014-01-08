@@ -112,7 +112,6 @@ class CurrentDensity:
         #For any nonzero density matrix couple define maximum and minimum
         #ii,jj,kk and then make a dictionary, cycle on the items and on
         #subblocks
-        local_cutoff = 1.5 
         for ii_nnz in range(self._weight.nnz):
             if np.mod(ii_nnz, 100) == 0:
                 print('nnz', ii_nnz)
@@ -123,10 +122,11 @@ class CurrentDensity:
                 continue
             i_storb = self._orb[self._orbind[i_orb]]
             j_storb = self._orb[self._orbind[j_orb]]
+            local_cutoff = i_storb.get_cutoff() + j_storb.get_cutoff()
             i_coord = self._orb_r[i_orb,:]
             j_coord = self._orb_r[j_orb,:]
-            if ((abs(i_coord - j_coord) > local_cutoff * 2.0).any() or
-                    np.linalg.norm(i_coord - j_coord) < 1e-3 ):
+            if ((abs(i_coord - j_coord) > local_cutoff * 2.0).any()
+                    or np.linalg.norm(i_coord - j_coord) < 1e-3 ):
                 continue
             i_min_coord = i_coord - local_cutoff#i_storb.get_cutoff()
             j_min_coord = j_coord - local_cutoff#j_storb.get_cutoff()
