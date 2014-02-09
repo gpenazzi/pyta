@@ -39,7 +39,7 @@ right = pyta.green.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl,
 #Note: chemical potential is 0 by default
 
 #Add contacts to Green solver
-leads = [left, right]
+leads = set([left, right])
 green_obj.set_leads(leads)
 
 trans = np.zeros(freq_points)

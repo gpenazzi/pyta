@@ -12,10 +12,10 @@ class Green:
 
         #Invar
         if leads is None:
-            self._leads = list()
+            self._leads = set()
         else:
-            assert(type(leads) == list)
-            self._leads = leads
+            assert(type(leads) == list or type(leads) == set)
+            self._leads = set(leads)
         
         #Param
         self._size = size
@@ -44,12 +44,16 @@ class Green:
         return self._green_lr
 
     def set_leads(self, leads):
-        """Add a Lead"""
-        assert(type(leads) == list)
+        """Add a Leads set"""
+        assert(type(leads) == set)
         self._leads = leads
         self._eqgreen = None
         self._green_gr = None
         self._green_lr = None
+
+    def set_lead(self, lead):
+        """Add a Lead"""
+        self._leads.add(lead)
 
     def get_eqgreen(self):
         """Get equilibrium Green's function. If a green's function is already
@@ -207,3 +211,38 @@ class GreenPhonon(Green):
         self._eqgreen = tmp.I
 
         return self._eqgreen
+
+
+class SCBA():
+    """A class to solve Self Consistent Born Approximation Loop"""
+    def __init__(self, 
+        #Params
+        greensolver, selfener, tol = defaults.scbatol, maxiter=1000,
+        task='both'):
+        """ greensolver and selfener are the solver 
+        to be plugged in the loop.
+        Task specify whether we loop on the equilibrium ('eq') or the Keldysh
+        ('keldysh') or both"""
+
+        #Param
+        self._green = greensolver
+        self._selfener = selfener
+        self._tol = tol
+        self._maxiter = maxiter
+        self._task = task
+
+    def do(self):
+        """Run the scba loop"""
+        if self._task == 'both':
+            for ind, scba in enumerate(range(self._maxiter)):
+                green_buf = self._green.get_eqgreen()
+                self._selfener.set_eqgreen(self._green.get_eqgreen())
+                self._selfener.set_green_lr(self._green.get_green_lr())
+                self._selfener.set_green_gr(self._green.get_green_gr())
+                self._green.set_lead(self._selfener)
+                green_after = self._green.get_eqgreen()
+                err = (green_after - green_buf).max()
+                if (abs(err)<self._tol):
+                    return
+
+        

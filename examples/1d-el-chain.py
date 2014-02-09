@@ -37,7 +37,7 @@ right = pyta.green.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
 #Note: chemical potential is 0 by default
 
 #Add contacts to Green solver
-leads = [left, right]
+leads = set([left, right])
 green_obj.set_leads(leads)
 trans = np.zeros(en_points)
 self_real = np.zeros(en_points)
