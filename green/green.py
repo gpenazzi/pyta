@@ -10,17 +10,17 @@ class Green:
             leads = None):
         """Base class constructor only invoked by derived classes."""
 
-        #Independent variables
+        #Invar
         if leads is None:
             self._leads = list()
         else:
             assert(type(leads) == list)
             self._leads = leads
         
-        #Constants
+        #Param
         self._size = size
 
-        #Dependent variables
+        #Outvar
         self._eqgreen = None
         self._green_gr = None
         self._green_lr = None
@@ -93,15 +93,15 @@ class GreenFermion(Green):
     differentiate fermions from other particles are reimplemented here"""
 
     def __init__(self, 
-            #Constants
+            #Param
             ham, over = None,
-            #Independent variables
+            #Invar
             energy = 0.0, leads=None):
         """GreenFermion is initialized by specifying an Hamiltonian as numpy.matrix.
         Optionally, overlap can be specified.
         If overlap is not specified, an orthogonal basis is assumed."""
 
-        #Constants
+        #Param
         #========================================================
         assert(type(ham) == np.matrixlib.defmatrix.matrix)
         if over:
@@ -111,7 +111,7 @@ class GreenFermion(Green):
         if over is None:
             self._over = np.matrix(np.eye(size))
 
-        #Independent variables
+        #Invar
         #=================================
         self._energy = energy
         #=================================
@@ -151,9 +151,9 @@ class GreenPhonon(Green):
     differentiate phonons from other particles are reimplemented here"""
     
     def __init__(self, 
-            #Constants
+            #Param
             spring, mass=None,
-            #Independent variables
+            #Invar
             freq=None, leads=None):
         """GreenPhonon is initialized by specifying a coupling spring constant
         matrix as numpy.matrix.
@@ -161,7 +161,7 @@ class GreenPhonon(Green):
         Masses must be specified as a diagonal numpy.matrix
         If masses are not specified, an identity matrix is assumed."""
 
-        #Constants
+        #Param
         #=======================================
         self._spring = spring
         self._mass = mass
@@ -174,7 +174,7 @@ class GreenPhonon(Green):
             self._mass = np.matrix(np.eye(size))
         #======================================
 
-        #Independent variables
+        #Invar
         #=======================================
         self._freq = None
         #=======================================
