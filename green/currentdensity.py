@@ -112,21 +112,22 @@ class CurrentDensity:
         #For any nonzero density matrix couple define maximum and minimum
         #ii,jj,kk and then make a dictionary, cycle on the items and on
         #subblocks
+        local_cutoff = 8.0
         for ii_nnz in range(self._weight.nnz):
-            if np.mod(ii_nnz, 100) == 0:
-                print('nnz', ii_nnz)
+            if np.mod(ii_nnz, 50) == 0:
+                print('nzval', ii_nnz, ' of ', self._weight.nnz)
             weight = self._weight.data[ii_nnz]
             i_orb = self._weight.row[ii_nnz]
             j_orb = self._weight.col[ii_nnz]
             if i_orb == j_orb:
                 continue
-            i_storb = self._orb[self._orbind[i_orb]]
-            j_storb = self._orb[self._orbind[j_orb]]
-            local_cutoff = i_storb.get_cutoff() + j_storb.get_cutoff()
+            #i_storb = self._orb[self._orbind[i_orb]]
+            #j_storb = self._orb[self._orbind[j_orb]]
+            #local_cutoff = i_storb.get_cutoff() + j_storb.get_cutoff()
             i_coord = self._orb_r[i_orb,:]
             j_coord = self._orb_r[j_orb,:]
-            if ((abs(i_coord - j_coord) > local_cutoff * 2.0).any()
-                    or np.linalg.norm(i_coord - j_coord) < 1e-3 ):
+            if ((abs(i_coord - j_coord) > local_cutoff).any()
+                    or (abs(i_coord - j_coord) < 1e-2).all() ):
                 continue
             i_min_coord = i_coord - local_cutoff#i_storb.get_cutoff()
             j_min_coord = j_coord - local_cutoff#j_storb.get_cutoff()

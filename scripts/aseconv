@@ -1,0 +1,22 @@
+#! /usr/bin/env python
+
+import argparse
+import ase.io
+
+parser = argparse.ArgumentParser('Script input for aseconv')
+
+helpstring = 'input atomistic structure file'
+parser.add_argument('infile', help=helpstring)
+helpstring = 'input format. If not specified, the input format is determined by file extension'
+parser.add_argument('--informat', help=helpstring)
+helpstring = 'input atomistic structure file'
+parser.add_argument('outfile', help=helpstring)
+helpstring = 'input format. If not specified, the input format is determined by file extension'
+parser.add_argument('--outformat', help=helpstring)
+
+args = parser.parse_args()
+indic = vars(args)
+
+#Actual code part
+st = ase.io.read(indic['infile'], format=indic['informat'])
+st.write(indic['outfile'], format=indic['outformat'])

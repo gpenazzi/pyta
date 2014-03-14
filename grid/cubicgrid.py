@@ -2,8 +2,10 @@ import numpy as np
 import ase
 
 class CubicGrid:
-    """A class to build and manage cubic grids and variables mapped on cubic
-    grids"""
+    """A class to build and manage cubic grids and variables mapped on
+    structured rectilinear grids with regularly spaced points (spacing can be
+    different along x,y,z but must be constant). Corresponds to cub format and
+    VTK StructuredPoints"""
     def __init__(self,
                 #Contants 
                 boundary, #(Rmin, Rmax) or (Atoms, tolerance) or (ndarray,
@@ -11,7 +13,7 @@ class CubicGrid:
                 res #float or 3-ple
                 ):
         
-        #By default grids are in real space bu in theory more dimensions would
+        #By default grids are in real space but in theory more dimensions would
         #be possible
         self._dim = 3
 
@@ -87,8 +89,8 @@ class CubicGrid:
         """Define the grid mesh"""
         
         for ind in range(self._dim):
-            self._npoints[ind] = int((self._rmax[ind] - 
-                self._rmin[ind]) / self._res[ind]) + 1
+            self._npoints[ind] = int(round((self._rmax[ind] - 
+                self._rmin[ind]) / self._res[ind])) + 1
             tmp_grid, tmp_step = np.linspace(self._rmin[ind], self._rmax[ind],
                     num=self._npoints[ind], endpoint=True, retstep=True)
 
@@ -158,9 +160,10 @@ class CubicGrid:
         return self._grid
                              
     def get_npoints(self):
-        """Get grid linear space"""
+        """Get number of points along x,y,z direction"""
 
         return self._npoints
+
 
     def get_meshgrid(self):
         """Get a meshgrid object"""
