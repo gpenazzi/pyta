@@ -10,17 +10,17 @@ class Green:
             leads = None):
         """Base class constructor only invoked by derived classes."""
 
-        #Independent variables
+        #Invar
         if leads is None:
-            self._leads = list()
+            self._leads = set()
         else:
-            assert(type(leads) == list)
-            self._leads = leads
+            assert(type(leads) == list or type(leads) == set)
+            self._leads = set(leads)
         
-        #Constants
+        #Param
         self._size = size
 
-        #Dependent variables
+        #Outvar
         self._eqgreen = None
         self._green_gr = None
         self._green_lr = None
@@ -44,12 +44,16 @@ class Green:
         return self._green_lr
 
     def set_leads(self, leads):
-        """Add a Lead"""
-        assert(type(leads) == list)
+        """Add a Leads set"""
+        assert(type(leads) == set)
         self._leads = leads
         self._eqgreen = None
         self._green_gr = None
         self._green_lr = None
+
+    def set_lead(self, lead):
+        """Add a Lead"""
+        self._leads.add(lead)
 
     def get_eqgreen(self):
         """Get equilibrium Green's function. If a green's function is already
@@ -93,15 +97,15 @@ class GreenFermion(Green):
     differentiate fermions from other particles are reimplemented here"""
 
     def __init__(self, 
-            #Constants
+            #Param
             ham, over = None,
-            #Independent variables
+            #Invar
             energy = 0.0, leads=None):
         """GreenFermion is initialized by specifying an Hamiltonian as numpy.matrix.
         Optionally, overlap can be specified.
         If overlap is not specified, an orthogonal basis is assumed."""
 
-        #Constants
+        #Param
         #========================================================
         assert(type(ham) == np.matrixlib.defmatrix.matrix)
         if over:
@@ -111,7 +115,7 @@ class GreenFermion(Green):
         if over is None:
             self._over = np.matrix(np.eye(size))
 
-        #Independent variables
+        #Invar
         #=================================
         self._energy = energy
         #=================================
@@ -151,9 +155,9 @@ class GreenPhonon(Green):
     differentiate phonons from other particles are reimplemented here"""
     
     def __init__(self, 
-            #Constants
+            #Param
             spring, mass=None,
-            #Independent variables
+            #Invar
             freq=None, leads=None):
         """GreenPhonon is initialized by specifying a coupling spring constant
         matrix as numpy.matrix.
@@ -161,7 +165,7 @@ class GreenPhonon(Green):
         Masses must be specified as a diagonal numpy.matrix
         If masses are not specified, an identity matrix is assumed."""
 
-        #Constants
+        #Param
         #=======================================
         self._spring = spring
         self._mass = mass
@@ -174,7 +178,7 @@ class GreenPhonon(Green):
             self._mass = np.matrix(np.eye(size))
         #======================================
 
-        #Independent variables
+        #Invar
         #=======================================
         self._freq = None
         #=======================================
@@ -207,3 +211,38 @@ class GreenPhonon(Green):
         self._eqgreen = tmp.I
 
         return self._eqgreen
+
+
+class SCBA():
+    """A class to solve Self Consistent Born Approximation Loop"""
+    def __init__(self, 
+        #Params
+        greensolver, selfener, tol = defaults.scbatol, maxiter=1000,
+        task='both'):
+        """ greensolver and selfener are the solver 
+        to be plugged in the loop.
+        Task specify whether we loop on the equilibrium ('eq') or the Keldysh
+        ('keldysh') or both"""
+
+        #Param
+        self._green = greensolver
+        self._selfener = selfener
+        self._tol = tol
+        self._maxiter = maxiter
+        self._task = task
+
+    def do(self):
+        """Run the scba loop"""
+        if self._task == 'both':
+            for ind, scba in enumerate(range(self._maxiter)):
+                green_buf = self._green.get_eqgreen()
+                self._selfener.set_eqgreen(self._green.get_eqgreen())
+                self._selfener.set_green_lr(self._green.get_green_lr())
+                self._selfener.set_green_gr(self._green.get_green_gr())
+                self._green.set_lead(self._selfener)
+                green_after = self._green.get_eqgreen()
+                err = (green_after - green_buf).max()
+                if (abs(err)<self._tol):
+                    return
+
+        

@@ -20,19 +20,19 @@ class Lead:
     (inscattering and outscattering sources)."""
 
     def __init__(self, 
-            #Constants
+            #Param
             position, size):
         """
         position (int): index of interacting device layer"""
 
-        #Constants
+        #Param
         #=====================================
         self._position = position
         self._size = size
         #=====================================
 
-        #Dependent variables
-        #Note: not all the dependent variables are set in runtime as a member
+        #Outvar
+        #Note: not all the output variables are set in runtime as a member
         #some subclass calculates them on-the-fly directly during every get
         #(gamma is a typical example gamma = sigma - sigma.H)
         #================================
@@ -78,18 +78,19 @@ class MRDephasing(Lead):
     """A Lead modelling Momentum relaxing dephasing"""
 
     def __init__(self, 
-            #Constants
+            #Param
+            #---
             #Independent variables
             deph, eqgreen=None, green_gr=None):
         """Only the name and dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
         to get the self energies using set_eqgreen() and set_neqgreen()"""
         
-        #Constants
+        #Param
         #================================
         #================================
 
-        #Independent variables
+        #Invar
         #================================
         assert(type(deph) == np.ndarray)
         self._deph = deph
@@ -156,18 +157,18 @@ class MCDephasing(Lead):
     """A Lead modelling Momentum conserving dephasing"""
 
     def __init__(self, 
-            #Constants
-            #Independent variables
+            #Param
+            #Invar
             deph, eqgreen=None, green_gr=None):
         """Only the dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
         to get the self energies using set_eqgreen() and set_neqgreen()"""
 
-        #Constants
+        #Param
         #================================
         #================================
 
-        #Independent variables
+        #Invar
         #================================
         assert(type(deph) == np.array)
         self._deph = deph
@@ -222,9 +223,9 @@ class PhysicalLead(Lead):
     """A class derived from Lead for the description of physical contacts"""
 
     def __init__(self,
-            #Constants
+            #Param
             position, size, pl_size,
-            #Independent variables
+            #Invar
             mu=0.0, temp=0.0, delta=defaults.delta):
         """A PhysicalLead object describe a semi-infinite periodic lead
         within the Open Boundary
@@ -236,12 +237,12 @@ class PhysicalLead(Lead):
         We always mean by convention the
         coupling device-contact, i.e. Hdc"""
 
-        #Constants
+        #Param
         #================================
         self._pl_size = pl_size
         #================================
         
-        #Independent variables
+        #Invar
         #================================
         self._mu = mu
         self._temp = temp
@@ -271,11 +272,11 @@ class PhysicalLeadFermion(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
     def __init__(self, 
-            #Constants
+            #Param
             position, ham, ham_t, ham_ld, over=None,
                  over_t=None, over_ld=None, 
-            #Independent variables
-                 energy = 0.0, mu=0.0, temp=0.0, delta=defaults.delta):
+            #Invar
+            energy = 0.0, mu=0.0, temp=0.0, delta=defaults.delta):
         """
         The following quantities must be specified:
 
@@ -295,7 +296,7 @@ class PhysicalLeadFermion(PhysicalLead):
         H10 (same for the overlap, if any)"""
         
 
-        #Constants
+        #Param
         #==========================================================
         self._ham = ham
         self._ham_t = ham_t
@@ -320,7 +321,7 @@ class PhysicalLeadFermion(PhysicalLead):
             self._over_ld = np.matrix(np.zeros(self._ham_ld.shape))
         #===========================================================
 
-        #Independent variables
+        #Invar
         #============================
         self._energy = energy
         #============================
@@ -394,12 +395,12 @@ class PhysicalLeadPhonon(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
     def __init__(self, 
-            #Constants
+            #Param
             position, spring, spring_t, spring_ld, mass=None,
-            #Independent variables
+            #Invar
             freq = 1.0, temp=0.0,delta=defaults.delta):
 
-        #Constants
+        #Param
         #======================================
         self._spring = spring
         self._mass = mass
@@ -420,7 +421,7 @@ class PhysicalLeadPhonon(PhysicalLead):
             self._mass = np.matrix(np.eye(pl_size))
         #======================================
     
-        #Independent variables
+        #Invar
         #===================================
         self._freq = freq
         #===================================
@@ -497,10 +498,10 @@ class WideBandFermion(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
     def __init__(self, 
-            #Constants
+            #Param
             position, dos, ham_ld, over_ld=None,
-            #Independent variables
-                 energy = 0.0, mu=0.0, temp=0.0, delta=defaults.delta):
+            #Invar
+            energy = 0.0, mu=0.0, temp=0.0, delta=defaults.delta):
         """
         The following quantities must be specified:
 
@@ -515,7 +516,7 @@ class WideBandFermion(PhysicalLead):
         H10 (same for the overlap, if any)"""
         
 
-        #Constants
+        #Param
         #==========================================================
         self._dos = dos
         self._ham_ld = ham_ld
@@ -527,7 +528,7 @@ class WideBandFermion(PhysicalLead):
             self._over_ld = np.matrix(np.zeros(self._ham_ld.shape))
         #===========================================================
 
-        #Independent variables
+        #Invar
         #============================
         self._energy = energy
         #============================

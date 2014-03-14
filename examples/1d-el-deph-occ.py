@@ -73,7 +73,7 @@ right.set_temp(t_right)
 
 # Declare Green's solver
 green_obj = pyta.green.GreenFermion(ham)
-leads = [left, right]
+leads = set([left, right])
 green_obj.set_leads(leads)
 ####################################
 
@@ -82,23 +82,10 @@ green_obj.set_leads(leads)
 for ind, ener in enumerate(en):
     green_obj.set_energy(ener)
     green = green_obj.get_eqgreen()
-    dephasing.set_eqgreen(green)
-    dephasing.set_green_lr(green_obj.get_green_lr())
-    dephasing.set_green_gr( green_obj.get_green_gr())
-    green_obj.set_leads(leads + [dephasing])
+
     #SCBA loop
-    for scba in scba_steps:
-        green_before = green_obj.get_eqgreen()
-        dephasing.set_eqgreen(green_obj.get_eqgreen())
-        dephasing.set_green_lr(green_obj.get_green_lr())
-        dephasing.set_green_gr(green_obj.get_green_gr())
-        green_obj.set_leads(leads + [dephasing])
-        green_after = green_obj.get_eqgreen()
-        err = (green_after-green_before).max()
-        if (abs(err)<scba_tol):
-            break
-        print("err", err)
-    assert(abs(err)<scba_tol)
+    scba = pyta.green.SCBA(green_obj, dephasing)
+    scba.do()
 
     #Occupation is determined by comparing the Non equilibrium Green's function
     #and the spectral density
