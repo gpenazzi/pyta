@@ -1,5 +1,5 @@
 import numpy as np
-import pyta.core.defaults as defaults
+import pyta.defaults as defaults
 
 class Green:
     """A class for equilibrium Green's function"""

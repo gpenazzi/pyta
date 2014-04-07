@@ -1,5 +1,4 @@
 #Copyright 2013 Gabriele Penazzi
 
-"""A collection of tools for computational physics"""
+"""A collection of tools for atomistic transport modelling (and something more)"""
 
-from pyta.core import consts,defaults 

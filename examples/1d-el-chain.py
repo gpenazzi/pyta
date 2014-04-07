@@ -8,7 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pyta.stats 
 import pyta.green
-import pyta.core.consts
+import pyta.lead
+import pyta.consts
 import sys
 
 #Set energy range
@@ -31,9 +32,9 @@ ham_pl = np.matrix([onsite])
 t_pl = np.matrix([hopping_element])
 ham_dl = np.matrix([hopping_element])
 pos = 0
-left = pyta.green.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
+left = pyta.lead.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
 pos = n-1
-right = pyta.green.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
+right = pyta.lead.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
 #Note: chemical potential is 0 by default
 
 #Add contacts to Green solver

@@ -1,7 +1,7 @@
 import numpy as np
-import pyta.core.defaults as defaults
-import pyta.stats as stats
-import pyta.core.consts as consts
+import pyta.defaults as defaults
+import pyta.dist as dist
+import pyta.consts as consts
 
 #I use this function to decorate matrices
 def resize_matrix(n, pos, mat):
@@ -381,13 +381,13 @@ class PhysicalLeadFermion(PhysicalLead):
     def _do_sigma_lr(self, resize = None):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
-        self._sigma_lr = (stats.fermi(self._energy, self._mu, temppot=self._temp) *
+        self._sigma_lr = (dist.fermi(self._energy, self._mu, temppot=self._temp) *
                     1j * self.get_gamma())
 
     def _do_sigma_gr(self, resize = None):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
-        self._sigma_gr = ((stats.fermi(self._energy, self._mu, temppot=self._temp) 
+        self._sigma_gr = ((dist.fermi(self._energy, self._mu, temppot=self._temp) 
                     - 1.0) * 1j * self.get_gamma())
 
 
@@ -483,14 +483,14 @@ class PhysicalLeadPhonon(PhysicalLead):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
         energy = self._freq * consts.hbar_eV_fs
-        self._sigma_lr = ((stats.bose(energy, self._mu, temppot=self._temp)) * 
+        self._sigma_lr = ((dist.bose(energy, self._mu, temppot=self._temp)) * 
                     (-1j) * self.get_gamma())
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
         energy = self._freq * consts.hbar_eV_fs
-        self._sigma_gr = ((stats.bose(energy, self._mu, temppot=self._temp)
+        self._sigma_gr = ((dist.bose(energy, self._mu, temppot=self._temp)
                     + 1.0) * (-1j) * self.get_gamma())
 
 
@@ -558,11 +558,11 @@ class WideBandFermion(PhysicalLead):
     def _do_sigma_lr(self, resize = None):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
-        self._sigma_lr = (stats.fermi(self._energy, self._mu, temppot=self._temp) *
+        self._sigma_lr = (dist.fermi(self._energy, self._mu, temppot=self._temp) *
                     1j * self.get_gamma())
 
     def _do_sigma_gr(self, resize = None):
         """Calculate the Sigma lesser"""
         assert(not self._mu is None)
-        self._sigma_gr = ((stats.fermi(self._energy, self._mu, temppot=self._temp) 
+        self._sigma_gr = ((dist.fermi(self._energy, self._mu, temppot=self._temp) 
                     - 1.0) * 1j * self.get_gamma())

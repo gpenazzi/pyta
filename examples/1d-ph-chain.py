@@ -9,7 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pyta.stats 
 import pyta.green
-import pyta.core.consts
+import pyta.lead
+import pyta.consts
 import sys
 
 #Set energy range
@@ -31,10 +32,10 @@ spring_pl = np.matrix([0.0])
 spring_t = np.matrix([spring_constant])
 spring_dl = np.matrix([spring_constant])
 pos = 0
-left = pyta.green.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl, 
+left = pyta.lead.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl, 
         temp = 10.0)
 pos = n-1
-right = pyta.green.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl,
+right = pyta.lead.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl,
         temp = 10.0)
 #Note: chemical potential is 0 by default
 

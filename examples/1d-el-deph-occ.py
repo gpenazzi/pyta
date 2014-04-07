@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import pyta.stats as stats
 import pyta.green
-import pyta.core.consts
+import pyta.lead
+import pyta.consts
 
 """Here we set a non homogeneous linear chain and we check the occupation
 in the first and last site respect to the occupation in the reservoirs.
@@ -49,9 +49,9 @@ occ_r_lead = np.zeros(en_points)
 pl_ham_l = np.matrix([onsite])
 pl_t = np.matrix([coupling_left])
 pl_ld = np.matrix([coupling_left])
-left = pyta.green.PhysicalLeadFermion(0, pl_ham_l, pl_t, pl_ld, mu =
+left = pyta.lead.PhysicalLeadFermion(0, pl_ham_l, pl_t, pl_ld, mu =
         0.0)
-t_left = 100.0 * pyta.core.consts.kb_eV__K
+t_left = 100.0 * pyta.consts.kb_eV__K
 left.set_temp(t_left)
 ####################
 
@@ -59,15 +59,15 @@ left.set_temp(t_left)
 pl_ham_r = np.matrix([onsite])
 pl_t = np.matrix([coupling_right])
 pl_ld = np.matrix([coupling_right])
-right = pyta.green.PhysicalLeadFermion(n-1, pl_ham_r, pl_t, pl_ld, mu =
+right = pyta.lead.PhysicalLeadFermion(n-1, pl_ham_r, pl_t, pl_ld, mu =
         1.0)
 ###################
 
 #Declare virtual lead
 dephase_parameter = np.array(np.zeros(n))
 dephase_parameter[0:n] = 1e-2
-dephasing = pyta.green.MRDephasing(dephase_parameter)
-t_right = 100.0 * pyta.core.consts.kb_eV__K
+dephasing = pyta.lead.MRDephasing(dephase_parameter)
+t_right = 100.0 * pyta.consts.kb_eV__K
 right.set_temp(t_right)
 ######################
 
