@@ -267,7 +267,6 @@ class SCBA():
                 self._selfener.set_eqgreen(self._green.get_eqgreen())
                 self._selfener.set_green_lr(self._green.get_green_lr())
                 self._green.set_lead(self._selfener)
-                self._green.reset()
                 green_after = self._green.get_eqgreen()
                 green_after_lr = self._green.get_green_lr()
                 err2 = (green_after_lr - green_buf_lr).max()
