@@ -1,5 +1,5 @@
 import numpy as np
-import pyta.grid.cubicgrid 
+import pyta.grid 
 
 """Methods and class to build real space current density"""
 
