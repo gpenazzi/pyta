@@ -250,6 +250,7 @@ class SCBA():
                 err2 = (green_after_lr - green_buf_lr).max()
                 if (abs(err1)<self._tol) and (abs(err2)<self._tol):
                     return
+            raise RuntimeError('SCBA loop not converged')
         if self._task == 'eq':
             for ind, scba in enumerate(range(self._maxiter)):
                 green_buf = self._green.get_eqgreen()
@@ -259,6 +260,7 @@ class SCBA():
                 err1 = (green_after - green_buf).max()
                 if (abs(err1)<self._tol):
                     return
+            raise RuntimeError('SCBA loop not converged')
         if self._task == 'keldysh':
             for ind, scba in enumerate(range(self._maxiter)):
                 green_buf_lr = self._green.get_green_lr()
@@ -271,4 +273,5 @@ class SCBA():
                 err2 = (green_after_lr - green_buf_lr).max()
                 if (abs(err2)<self._tol):
                     return
+            raise RuntimeError('SCBA loop not converged')
         
