@@ -84,7 +84,7 @@ for ind, ener in enumerate(en):
     green = green_obj.get_eqgreen()
 
     #SCBA loop
-    scba = pyta.green.SCBA(green_obj, dephasing)
+    scba = pyta.green.SCBA(green_obj, dephasing, task='both')
     scba.do()
 
     #Occupation is determined by comparing the Non equilibrium Green's function

@@ -54,6 +54,9 @@ class Green:
     def set_lead(self, lead):
         """Add a Lead"""
         self._leads.add(lead)
+        self._eqgreen = None
+        self._green_gr = None
+        self._green_lr = None
 
     def get_eqgreen(self):
         """Get equilibrium Green's function. If a green's function is already
@@ -236,13 +239,36 @@ class SCBA():
         if self._task == 'both':
             for ind, scba in enumerate(range(self._maxiter)):
                 green_buf = self._green.get_eqgreen()
+                green_buf_lr = self._green.get_green_lr()
                 self._selfener.set_eqgreen(self._green.get_eqgreen())
                 self._selfener.set_green_lr(self._green.get_green_lr())
                 self._selfener.set_green_gr(self._green.get_green_gr())
                 self._green.set_lead(self._selfener)
                 green_after = self._green.get_eqgreen()
-                err = (green_after - green_buf).max()
-                if (abs(err)<self._tol):
+                green_after_lr = self._green.get_green_lr()
+                err1 = (green_after - green_buf).max()
+                err2 = (green_after_lr - green_buf_lr).max()
+                if (abs(err1)<self._tol) and (abs(err2)<self._tol):
                     return
-
+        if self._task == 'eq':
+            for ind, scba in enumerate(range(self._maxiter)):
+                green_buf = self._green.get_eqgreen()
+                self._selfener.set_eqgreen(self._green.get_eqgreen())
+                self._green.set_lead(self._selfener)
+                green_after = self._green.get_eqgreen()
+                err1 = (green_after - green_buf).max()
+                if (abs(err1)<self._tol):
+                    return
+        if self._task == 'keldysh':
+            for ind, scba in enumerate(range(self._maxiter)):
+                green_buf_lr = self._green.get_green_lr()
+                self._selfener.set_eqgreen(self._green.get_eqgreen())
+                self._selfener.set_green_lr(self._green.get_green_lr())
+                self._green.set_lead(self._selfener)
+                self._green.reset()
+                green_after = self._green.get_eqgreen()
+                green_after_lr = self._green.get_green_lr()
+                err2 = (green_after_lr - green_buf_lr).max()
+                if (abs(err2)<self._tol):
+                    return
         
