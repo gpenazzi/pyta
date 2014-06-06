@@ -1,82 +1,95 @@
 import numpy as np
 import pyta.defaults as defaults
+import solver
 
-class Green:
+class Green(solver.Solver):
     """A class for equilibrium Green's function"""
     def __init__(self, 
-            #Constant
-            size,
-            #Independent variables
-            leads = None):
-        """Base class constructor only invoked by derived classes."""
+            #Parameters
+            size):
+        """
+        Base class constructor only invoked by derived classes.
+
+        invar:
+        1) leads
+            set of Leads
+            overwrite, append
+
+        parameters:
+        1) size
+
+        outvar:
+        1) eqgreen
+        2) green_gr
+        3) green_lr
+        4) spectral
+
+        """
 
         #Invar
-        if leads is None:
-            self._leads = set()
-        else:
-            assert(type(leads) == list or type(leads) == set)
-            self._leads = set(leads)
-        
+        self.leads = set()
+
         #Param
-        self._size = size
+        self.size = size
 
         #Outvar
-        self._eqgreen = None
-        self._green_gr = None
-        self._green_lr = None
+        self.eqgreen = None
+        self.green_gr = None
+        self.green_lr = None
 
-    def do_green_gr(self):
+    def _do_green_gr(self):
         """Calculate equilibrium Green's function"""
         sigma_gr = np.matrix(np.zeros((self._size, self._size), dtype=np.complex128))
         for lead in self._leads:
-            sigma_gr = sigma_gr + lead.get_sigma_gr(resize = self._size)
-        self._green_gr = self.get_eqgreen() * sigma_gr * self.get_eqgreen().H
+            sigma_gr = sigma_gr + lead.get_sigma_gr(resize = self.size)
+        self.green_gr = self.get_eqgreen() * sigma_gr * self.get_eqgreen().H
 
-        return self._green_gr
+        return self.green_gr
 
-    def do_green_lr(self):
+    def _do_green_lr(self):
         """Calculate equilibrium Green's function"""
         sigma_lr = np.matrix(np.zeros((self._size, self._size), dtype=np.complex128))
         for lead in self._leads:
-            sigma_lr = sigma_lr + lead.get_sigma_lr(resize = self._size)
-        self._green_lr = self.get_eqgreen() * sigma_lr * self.get_eqgreen().H
+            sigma_lr = sigma_lr + lead.get_sigma_lr(resize = self.size)
+        self.green_lr = self.get_eqgreen() * sigma_lr * self.get_eqgreen().H
 
         return self._green_lr
 
-    def set_leads(self, leads):
+
+    def set_leads(self, leads, mode):
         """Add a Leads set"""
         assert(type(leads) == set)
-        self._leads = leads
-        self._eqgreen = None
-        self._green_gr = None
-        self._green_lr = None
+        if mode == 'replace':
+            self._leads = leads
+        if mode == 'append':
+            self.leads = self._leads | leads
+        self.cleandep_leads()
+        return
 
-    def set_lead(self, lead):
-        """Add a Lead"""
-        self._leads.add(lead)
-        self._eqgreen = None
-        self._green_gr = None
-        self._green_lr = None
+    def cleandep_leads(self):
+        self.eqgreen = None
+        self.green_gr = None
+        self.green_lr = None
 
-    def get_eqgreen(self):
+    def get_eqgreen(self, optargs):
         """Get equilibrium Green's function. If a green's function is already
         existing, it's returned without calculating again assumed that the
         energy has not changed."""
 
-        if self._eqgreen is None:
-            self.do_eqgreen()
-        assert(not self._eqgreen is None)
-        return self._eqgreen
+        if self.eqgreen is None:
+            self._do_eqgreen()
+        assert(not self.eqgreen is None)
+        return self.eqgreen
 
     def get_green_gr(self):
         """Get greater Green's function. If a green's function is already
         existing, it's returned without calculating again assumed that the
         energy has not changed."""
 
-        if self._green_gr is None:
-            self.do_green_gr()
-        assert(not self._green_gr is None)
-        return self._green_gr
+        if self.green_gr is None:
+            self._do_green_gr()
+        assert(not self.green_gr is None)
+        return self.green_gr
 
     def get_green_lr(self):
         """Get lesser Green's function. If a green's function is already
@@ -84,9 +97,9 @@ class Green:
         energy has not changed."""
 
         if self._green_lr is None:
-            self.do_green_lr()
-        assert(not self._green_lr is None)
-        return self._green_lr
+            self._do_green_lr()
+        assert(not self.green_lr is None)
+        return self._reen_lr
 
     def get_spectral(self):
         """Get spectral function A = j(G^{r} - G^{a})"""
@@ -100,57 +113,83 @@ class GreenFermion(Green):
     differentiate fermions from other particles are reimplemented here"""
 
     def __init__(self, 
-            #Param
-            ham, over = None,
-            #Invar
-            energy = 0.0, leads=None):
+            #Parameters
+            ham, over = None):
         """GreenFermion is initialized by specifying an Hamiltonian as numpy.matrix.
         Optionally, overlap can be specified.
-        If overlap is not specified, an orthogonal basis is assumed."""
+        If overlap is not specified, an orthogonal basis is assumed.
+
+        See base class Green
+
+        invar:
+        1) energy
+           overwrite
+
+        2) leads
+            set of Leads
+            overwrite, append
+
+        parameters:
+        1)  ham
+            system hamiltonian, numpy.matrix
+        2)  overlap (optional)
+            overlap matrix, real numpy.matrix
+
+        """
 
         #Param
         #========================================================
         assert(type(ham) == np.matrixlib.defmatrix.matrix)
         if over:
             assert(type(over) == np.matrixlib.defmatrix.matrix)
-        self._ham = ham
-        size = len(self._ham)
+        self.ham = ham
+        size = len(self.ham)
         if over is None:
-            self._over = np.matrix(np.eye(size))
+            self.over = np.matrix(np.eye(size))
 
         #Invar
         #=================================
-        self._energy = energy
+        self.energy = None
         #=================================
 
         #Base constructor
-        Green.__init__(self, size, leads)
+        Green.__init__(self, size)
 
-    def set_energy(self, energy):
+    def set_energy(self, energy, mode):
         """Set energy point"""
-        if energy != self._energy:
-            self._energy = energy
-            self._eqgreen = None
-            self._green_lr = None
-            self._green_gr = None
+        assert(mode == 'replace')
+        if energy != self.energy:
+            self.energy = energy
+            self.cleandep_energy()
             #Update energy point in all leads where set_energy is defined
-            for lead in self._leads:
-                try:
-                    lead.set_energy(energy)
-                except AttributeError:
-                    pass
-                else:
-                    lead.set_energy(energy)
+            self._spread_energy(energy)
 
-    def do_eqgreen(self):
+    def cleandep_energy(self):
+        self.eqgreen = None
+        self.green_lr = None
+        self.green_gr = None
+
+
+    def _spread_energy(self, energy):
+        "Distribute energy in leads"
+        for lead in self.leads:
+            try:
+                lead.set_energy(energy)
+            except AttributeError:
+                pass
+            else:
+                lead.set_energy(energy)
+
+
+    def _do_eqgreen(self):
         """Calculate equilibrium Green's function"""
-        es_h = self._energy * self._over - self._ham
+        es_h = self.energy * self.over - self.ham
             
-        for lead in self._leads:
-            es_h = es_h - lead.get_sigma(resize = self._size)
-        self._eqgreen = es_h.I
+        for lead in self.leads:
+            es_h = es_h - lead.get_sigma(resize = self.size)
+        self.eqgreen = es_h.I
 
-        return self._eqgreen
+        return self.eqgreen
 
 
 class GreenPhonon(Green):
@@ -159,9 +198,7 @@ class GreenPhonon(Green):
     
     def __init__(self, 
             #Param
-            spring, mass=None,
-            #Invar
-            freq=None, leads=None):
+            spring, mass=None):
         """GreenPhonon is initialized by specifying a coupling spring constant
         matrix as numpy.matrix.
         Optionally, masses can be specified.
@@ -170,50 +207,59 @@ class GreenPhonon(Green):
 
         #Param
         #=======================================
-        self._spring = spring
-        self._mass = mass
+        self.spring = spring
+        self.mass = mass
         assert(type(spring) == np.matrixlib.defmatrix.matrix)
         if not (mass is None):
             assert(type(spring) == np.matrixlib.defmatrix.matrix)
-        self._spring = spring
-        size = len(self._spring)
+        self.spring = spring
+        size = len(self.spring)
         if mass is None:
-            self._mass = np.matrix(np.eye(size))
+            self.mass = np.matrix(np.eye(size))
         #======================================
 
         #Invar
         #=======================================
-        self._freq = None
+        self.frequency = None
         #=======================================
         
         #Base constructor
-        Green.__init__(self, size, leads)
+        Green.__init__(self, size)
 
-    def set_freq(self, freq):
+    def set_frequency(self, frequency, mode):
         """Set energy point"""
-        if freq != self._freq:
-            self._freq = freq
-            self._eqgreen = None
-            self._green_lr = None
-            self._green_gr = None
-            #Update energy point in all leads
-            for lead in self._leads:
-                try:
-                    lead.set_freq(freq)
-                except AttributeError:
-                    pass
-                else:
-                    lead.set_freq(freq)
+        assert(mode == 'replace')
+        if frequency != self.frequency:
+            self.frequency = frequency
+            self.cleandep_frequency()
+            self._spread_frequency(frequency)
+
+    def cleandep_frequency(self):
+        self.eqgreen = None
+        self.green_lr = None
+        self.green_gr = None
+
+
+    def _spread_frequency(self, frequency):
+        "Distribute energy in leads"
+        for lead in self.leads:
+            try:
+                lead.set_frequency(frequency)
+            except AttributeError:
+                pass
+            else:
+                lead.set_frequency(frequency)
+
 
     def do_eqgreen(self):
         """Calculate equilibrium Green's function"""
-        tmp = self._freq * self._freq * self._mass - self._spring
+        tmp = self.frequency * self.frequency * self.mass - self.spring
             
         for lead in self._leads:
-            tmp = tmp - lead.get_sigma(resize = self._size)
-        self._eqgreen = tmp.I
+            tmp = tmp - lead.get_sigma(resize = self.size)
+        self.eqgreen = tmp.I
 
-        return self._eqgreen
+        return self.eqgreen
 
 
 class SCBA():
