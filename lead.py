@@ -1,4 +1,5 @@
 import numpy as np
+import solver
 import pyta.defaults as defaults
 import pyta.dist as dist
 import pyta.consts as consts
@@ -15,20 +16,39 @@ def resize_matrix(n, pos, mat):
         tmp[pos:pos + size, pos:pos + size] = mat[:, :]
         return tmp
 
-class Lead:
+class Lead(solver.Solver):
     """A base class for managing and building up real and virtual leads
     (inscattering and outscattering sources)."""
 
     def __init__(self, 
             #Param
-            position, size):
+            position):
         """
-        position (int): index of interacting device layer"""
+        Base class (virtual like)
+
+        outvar:
+        1) sigma
+        2) sigma_gr
+        3) sigma_lr
+        4) gamma
+
+        invar:
+        (see derived classes)
+
+        parameters:
+        1) position
+            index of interacting layer (int)
+
+        internal:
+        2) size
+            index of system to be attached to
+
+        """
 
         #Param
         #=====================================
-        self._position = position
-        self._size = size
+        self.position = position
+        self.size = None
         #=====================================
 
         #Outvar
@@ -36,43 +56,44 @@ class Lead:
         #some subclass calculates them on-the-fly directly during every get
         #(gamma is a typical example gamma = sigma - sigma.H)
         #================================
-        self._sigma = None
-        self._sigma_gr = None
-        self._sigma_lr = None
-        self._gamma = None
+        self.sigma = None
+        self.sigma_gr = None
+        self.sigma_lr = None
+        self.gamma = None
         #================================
     
-    def get_sigma(self, resize = None):
-        if self._sigma is None:
+    def get_sigma(self, **kwargs):
+        if self.sigma is None:
             self._do_sigma()
-        if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma)
+        if 'resize' in kwargs:
+            if kwargs['resize']:
+                return resize_matrix(resize, self.position, self.sigma)
         else:
-            return self._sigma
+            return self.sigma
 
     def get_sigma_gr(self, resize = None):
-        if self._sigma_gr is None:
+        if self.sigma_gr is None:
             self._do_sigma_gr()
         if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma_gr)
+            return resize_matrix(resize, self.position, self.sigma_gr)
         else:
-            return self._sigma_gr
+            return self.sigma_gr
 
     def get_sigma_lr(self, resize = None):
-        if self._sigma_lr is None:
+        if self.sigma_lr is None:
             self._do_sigma_lr()
         if not resize is None:
-            return resize_matrix(resize, self._position, self._sigma_lr)
+            return resize_matrix(resize, self.position, self.sigma_lr)
         else:
-            return self._sigma_lr
+            return self.sigma_lr
 
     def get_gamma(self, resize = None):
-        if self._gamma is None:
+        if self.gamma is None:
             self._do_gamma()
         if not resize is None:
-            return resize_matrix(resize, self._position, self._gamma)
+            return resize_matrix(resize, self.position, self.gamma)
         else:
-            return self._gamma
+            return self.gamma
 
 class MRDephasing(Lead):
     """A Lead modelling Momentum relaxing dephasing"""
@@ -100,8 +121,8 @@ class MRDephasing(Lead):
 
         #Base constructors 
         position = 0
-        size = deph.size
-        Lead.__init__(self, position, size)
+        self.size = deph.size
+        Lead.__init__(self, position)
 
     def set_deph(self, deph):
         """Set a new dephasing parameter"""
@@ -179,8 +200,8 @@ class MCDephasing(Lead):
 
         #Base constructors 
         position = 0
-        size = deph.size()
-        Lead.__init__(self, position, size)
+        self.size = deph.size
+        Lead.__init__(self, position)
 
     def set_deph(self, deph):
         """Set a new dephasing parameter"""
@@ -224,7 +245,7 @@ class PhysicalLead(Lead):
 
     def __init__(self,
             #Param
-            position, size, pl_size,
+            position,
             #Invar
             mu=0.0, temp=0.0, delta=defaults.delta):
         """A PhysicalLead object describe a semi-infinite periodic lead
@@ -239,18 +260,18 @@ class PhysicalLead(Lead):
 
         #Param
         #================================
-        self._pl_size = pl_size
+        self.pl_size = pl_size
         #================================
         
         #Invar
         #================================
-        self._mu = mu
-        self._temp = temp
-        self._delta = delta
+        self.mu = mu
+        self.temp = temp
+        self.delta = delta
         #================================
         
         #Base constructors
-        Lead.__init__(self, position, size)
+        Lead.__init__(self, position)
 
     def set_mu(self, mu):
         """Set a chemical potential, for nonequilibrium self energy"""
@@ -278,17 +299,18 @@ class PhysicalLeadFermion(PhysicalLead):
             #Invar
             energy = 0.0, mu=0.0, temp=0.0, delta=defaults.delta):
         """
-        The following quantities must be specified:
 
-        ham (np.matrix): Hamiltonian for a single layer
-        over (np.matrix), optional: Overlap for a single layer
-        ham_t (np.matrix): coupling matrix between single layers
-        over_t (np.matrix): overlap in the coupling block between single
-        layers.If none, it's set tozero
-        ham_ld (np.matrix): coupling between lead and device
-        over_ld (np.matrix): overlap in device-lead coupling
-        position (int): index of interacting device layer
-        mu (float): chemical potential
+        parameters:
+
+        1) ham (np.matrix): Hamiltonian for a single layer
+        2) over (np.matrix), optional: Overlap for a single layer
+        3) ham_t (np.matrix): coupling matrix between single layers
+        4) over_t (np.matrix): overlap in the coupling block between single
+        5) layers.If none, it's set to zero
+        6) ham_ld (np.matrix): coupling between lead and device
+        7) over_ld (np.matrix): overlap in device-lead coupling
+        8) position (int): index of interacting device layer
+        9) mu (float): chemical potential
 
         We always mean by convention the
         coupling device-contact, i.e. Hcd 
@@ -298,21 +320,21 @@ class PhysicalLeadFermion(PhysicalLead):
 
         #Param
         #==========================================================
-        self._ham = ham
-        self._ham_t = ham_t
-        self._ham_ld = ham_ld
-        self._over = over
-        self._over_t = over_t
-        self._over_ld = over_ld
+        self.ham = ham
+        self.ham_t = ham_t
+        self.ham_ld = ham_ld
+        self.over = over
+        self.over_t = over_t
+        self.over_ld = over_ld
         #Some check
         assert(type(ham) == np.matrixlib.defmatrix.matrix)
         if over:
             assert(type(over) == np.matrixlib.defmatrix.matrix)
         #H must be a square matrix
-        assert(self._ham.shape[0] == self._ham.shape[1])
+        assert(self.ham.shape[0] == self.ham.shape[1])
 
         #Set defaults
-        pl_size = self._ham.shape[0]
+        self.pl_size = self.ham.shape[0]
         if not over:
             self._over = np.matrix(np.eye(pl_size))
         if not over_t:
@@ -323,12 +345,12 @@ class PhysicalLeadFermion(PhysicalLead):
 
         #Invar
         #============================
-        self._energy = energy
+        self.energy = energy
         #============================
    
         #Base constructor
-        size = self._ham_ld.shape[0]
-        PhysicalLead.__init__(self, position, size, pl_size, mu=mu, 
+        self.size = self.ham_ld.shape[0]
+        PhysicalLead.__init__(self, position, mu=mu,
                 temp=temp, delta=delta)
 
     def set_energy(self, energy):

@@ -71,7 +71,7 @@ class Green(solver.Solver):
         self.green_gr = None
         self.green_lr = None
 
-    def get_eqgreen(self, optargs):
+    def get_eqgreen(self):
         """Get equilibrium Green's function. If a green's function is already
         existing, it's returned without calculating again assumed that the
         energy has not changed."""
@@ -123,11 +123,11 @@ class GreenFermion(Green):
 
         invar:
         1) energy
-           overwrite
+            mode: overwrite
 
         2) leads
             set of Leads
-            overwrite, append
+            mode: overwrite, append
 
         parameters:
         1)  ham
@@ -203,7 +203,25 @@ class GreenPhonon(Green):
         matrix as numpy.matrix.
         Optionally, masses can be specified.
         Masses must be specified as a diagonal numpy.matrix
-        If masses are not specified, an identity matrix is assumed."""
+        If masses are not specified, an identity matrix is assumed.
+
+        See base class Green
+
+        invar:
+        1) frequency
+           mode: overwrite
+
+        2) leads
+            set of Leads
+            mode: overwrite, append
+
+        parameters:
+        1)  sprint
+            spring constants, numpy.matrix
+        2)  mass (optional)
+            mass matrix, real numpy.matrix
+
+        """
 
         #Param
         #=======================================

@@ -36,7 +36,7 @@ class Solver:
         return
 
 
-    def get(self, outvarname, optargs=None):
+    def get(self, outvarname, **kwargs):
         """
         Get an output variable invar specified by a string.
         If a _get_<name> function exists in the derived class, this
@@ -44,18 +44,18 @@ class Solver:
         set function is invoked.
         """
         function_name = 'get_' + outvarname
-        exist = getattr(self, function_name, None)
+        exist = getattr(self, function_name, **kwargs)
         if callable(exist):
-            return exist(optargs)
+            return exist(**kwargs)
 
         member_name = outvarname
         exist = getattr(self, member_name)
         if exist is None:
             #Trying to invoke a do function
             do_function = '_do_' + outvarname
-            do_exist = getattr(self, do_function, None)
+            do_exist = getattr(self, do_function, **kwargs)
             if callable(do_exist):
-                do_exist(optargs)
+                do_exist(**kwargs)
                 return exist
             else:
                 raise ValueError('invar does not correspond to any member')
