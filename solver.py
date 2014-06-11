@@ -2,7 +2,29 @@ class Solver:
     """
     Base class for solvers in pyta. Define the general infrastructure
     and external API of a solver type class
+
+    Every Solver is characterized by:
+
+    parameters
+    immutable during the instance lifetime, initialized during construction.
+    They are retrieved using get() methods.
+
+    input variables:
+    mutable during the instance lifetime. The are set with set() method.
+    Input variables may be class instances. A set operation may propagate
+    to other input variables (for example, if you set a temperature and
+    an input variable is a solver depending on temperature itself)
+
+    output variable:
+    mutable during the instance lifetime. They are retrieved using get()
+    methods
+
+    Parameters, input variables and output variables are specified
+    in the docstring of the class
+
+
     """
+
     def __init__(self):
         pass
 
@@ -44,7 +66,7 @@ class Solver:
         set function is invoked.
         """
         function_name = 'get_' + outvarname
-        exist = getattr(self, function_name, **kwargs)
+        exist = getattr(self, function_name, None)
         if callable(exist):
             return exist(**kwargs)
 
@@ -53,10 +75,10 @@ class Solver:
         if exist is None:
             #Trying to invoke a do function
             do_function = '_do_' + outvarname
-            do_exist = getattr(self, do_function, **kwargs)
+            do_exist = getattr(self, do_function, None)
             if callable(do_exist):
                 do_exist(**kwargs)
-                return exist
+                return getattr(self, member_name)
             else:
                 raise ValueError('invar does not correspond to any member')
         else:
@@ -74,4 +96,7 @@ class Solver:
         if callable(exist):
             exist()
             return
+        else:
+            errorstring = 'Could not find cleandep method for variable' + str(invarname)
+            raise ValueError(errorstring)
 
