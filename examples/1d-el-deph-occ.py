@@ -18,7 +18,7 @@ en, step = np.linspace(-0.2, 1.5, en_points, retstep = True)
 #System length
 n = 200
 #Maximum number of Self Consistent Born Approximation steps and SCBA tolerance
-scba_steps = range(1000)
+scba_steps = 1000
 scba_tol = 1e-5
 
 #Device Hamiltonian and coupling parameters
@@ -52,6 +52,7 @@ pl_ld = np.matrix([coupling_left])
 left = pyta.lead.PhysicalLeadFermion(0, pl_ham_l, pl_t, pl_ld)
 t = 100.0 * pyta.consts.kb_eV__K
 left.set('temperature', t)
+left.set('mu', 0.0)
 ####################
 
 #Declare right lead
@@ -61,19 +62,19 @@ pl_ld = np.matrix([coupling_right])
 right = pyta.lead.PhysicalLeadFermion(n-1, pl_ham_r, pl_t, pl_ld)
 t = 100.0 * pyta.consts.kb_eV__K
 right.set('temperature', t)
+right.set('mu', 1.0)
 ###################
 
 #Declare virtual lead
 dephase_parameter = np.array(np.zeros(n))
-dephase_parameter[0:n] = 1e-2
+dephase_parameter[0:n] = 1e-3
 dephasing = pyta.lead.MRDephasing()
 dephasing.set('coupling', dephase_parameter)
 ######################
 
 # Declare Green's solver
 green_obj = pyta.green.GreenFermion(ham)
-leads = [left, right]
-green_obj.set('leads', leads)
+green_obj.set('leads', [left, right])
 ####################################
 
 #Assign green to virtual lead
@@ -81,10 +82,10 @@ dephasing.set('greensolver', green_obj)
 
 # Energy loop
 for ind, ener in enumerate(en):
-    print('ind',ind)
     green_obj.set('energy', ener)
     #SCBA loop
-    scba = pyta.green.SCBA(green_obj, dephasing, task='both')
+    green_obj.set('leads', [left, right])
+    scba = pyta.green.SCBA(green_obj, dephasing, tol = scba_tol, maxiter=scba_steps, task='both')
     scba.do()
 
     #Occupation is determined by comparing the Non equilibrium Green's function

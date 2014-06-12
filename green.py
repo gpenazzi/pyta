@@ -117,7 +117,7 @@ class Green(solver.Solver):
             assert(sigma.shape[0]==sigma.shape[1])
             size = sigma.shape[0]
             pos = lead.get('position')
-            mat[pos: pos+size, pos:pos+size] -= sigma
+            mat[pos: pos+size, pos:pos+size] += sigma
         return
 
 
@@ -227,8 +227,10 @@ class GreenFermion(Green):
 
     def _do_eqgreen(self):
         """Calculate equilibrium Green's function"""
+        sigma = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
-        self._add_leads(esh, 'sigma')
+        self._add_leads(sigma, 'sigma')
+        esh -= sigma
         self.eqgreen = esh.I
 
         return self.eqgreen
@@ -361,7 +363,6 @@ class SCBA():
                 err1 = (green_local - green_buf).max()
                 err2 = (green_local_lr - green_buf_lr).max()
                 if (abs(err1)<self.tol) and (abs(err2)<self.tol):
-                    green.set('leads', selfener, mode='remove')
                     return
                 selfener.set('greensolver', local)
                 green.cleandep('leads')
@@ -373,17 +374,28 @@ class SCBA():
                 green_local_lr = local.get('green_lr')
             raise RuntimeError('SCBA loop not converged')
 
-        if self.task == 'eq':
+        if self.task == 'equilibrium':
+            #1st iteration: green without scba self energy and 1st order
+            #Born self energy
             green_buf = green.get('eqgreen')
+            local.set('leads', selfener, mode='append')
+            green_local = local.get('eqgreen')
+            green.set('leads', selfener, mode='append')
+            #Now append the scba
             for ind, scba in enumerate(range(self.maxiter)):
-                green_buf = self.green.get_eqgreen()
-                self.selfener.set_eqgreen(self.green.get_eqgreen())
-                self.green.set_lead(self.selfener)
-                green_after = self.green.get_eqgreen()
-                err1 = (green_after - green_buf).max()
+                err1 = (green_local - green_buf).max()
+                print('SCBA loop', ind, err1)
                 if (abs(err1)<self.tol):
                     return
+                selfener.set('greensolver', local)
+                green.cleandep('leads')
+                green_buf = green.get('eqgreen')
+                selfener.set('greensolver', green)
+                local.cleandep('leads')
+                green_local = local.get('eqgreen')
             raise RuntimeError('SCBA loop not converged')
+
+
         if self.task == 'keldysh':
             green_buf_lr = green.get('green_lr')
             for ind, scba in enumerate(range(self.maxiter)):
