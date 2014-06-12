@@ -46,6 +46,9 @@ class Lead(solver.Solver):
 
         """
 
+        #Invar
+        self.coupling = None
+
         #Param
         #=====================================
         self.position = position
@@ -70,6 +73,14 @@ class Lead(solver.Solver):
         gamma = 1.j * (sigma - sigma.H)
         return gamma
 
+    def get_occupation(self):
+        """Calculate the occupation by comparing the lesser green function
+        and the spectral function. """
+        diag1 = self.get('sigma_lr')
+        diag2 = self.get('gamma')
+        occupation = (np.imag(diag1/ diag2))
+        return occupation
+
 
 class MRDephasing(Lead):
     """A Lead modelling Momentum relaxing dephasing"""
@@ -90,8 +101,8 @@ class MRDephasing(Lead):
         dephasing parameter (numpy.array, float)
         2) eqgreen
         equilibrium green's function for calculation of self energy
-        3) green_gr
-        Keldysh green's function for calculation of self energy
+        3) greensolver
+        A Green solver which provides all the needed Green's function
 
         internal:
         2) size
@@ -105,82 +116,72 @@ class MRDephasing(Lead):
 
         #Invar
         #================================
-        self.deph = None
+        self.coupling = None
+        self.greensolver = None
         #================================
+
+        #Internal
+        self.size = None
 
         #Base constructors 
         position = 0
-        self.size = deph.size
         Lead.__init__(self, position)
 
-    def set_deph(self, deph):
+    def set_coupling(self, coupling):
         """Set a new dephasing parameter"""
-        assert (type(deph) == np.ndarray)
-        assert (deph.size == self.size)
-        self.cleandep_deph()
-        self.deph = deph
+        assert (type(coupling) == np.ndarray)
+        self.cleandep_coupling()
+        self.coupling = coupling
+        self.size = len(coupling)
         return
 
-    def cleandep_deph(self):
+    def cleandep_coupling(self):
+        """
+        Clean up coupling dependencies
+        :return: none
+        """
         self.sigma = None
         self.sigma_gr = None
         self.sigma_lr = None
         return
 
-    def set_eqgreen(self, eqgreen):
-        """Set an equilibrium Green's function"""
-        self.eqgreen = eqgreen
-        self.size = self.eqgreen.shape[0]
-        self.cleandep_eqgreen()
-        return
-
-    def cleandep_eqgreen(self):
-        self.sigma = None
-        return
-
-    def set_green_gr(self, green_gr):
+    def set_greensolver(self, green):
         """Set a non-equilibrium Green's function (Greater)"""
-        self.green_gr = green_gr
-        self.size = self.green_gr.shape[0]
-        self.cleandep_green_gr()
+        self.greensolver = green
+        self.cleandep_greensolver()
+        self.size = green.get('size')
         return
 
-    def cleandep_green_gr(self):
+    def cleandep_greensolver(self):
         self.sigma_gr = None
-        return
-
-    def set_green_lr(self, green_lr):
-        """Set a non-equilibrium Green's function (Lesser)"""
-        self.green_lr = green_lr
-        self.size = self.green_lr.shape[0]
-        self.cleandep_green_lr()
-        return
-
-    def cleandep_green_lr(self):
         self.sigma_lr = None
+        self.sigma = None
         return
 
     def _do_sigma(self):
         """Calculate the retarded self energy"""
-        assert (not self.eqgreen is None)
+        eqgreen = self.greensolver.get('eqgreen')
         tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
-        #Note: * is an elementwise operator for ndarray types 
-        np.fill_diagonal(tmp, np.multiply(self.eqgreen.diagonal(), self.deph))
+        #Note: * is an elementwise operator for ndarray types
+        np.fill_diagonal(tmp, np.multiply(eqgreen.diagonal(), self.coupling))
         self.sigma = tmp
+        return
 
     def _do_sigma_gr(self):
         """Calculate the retarded self energy"""
-        assert (not self.green_gr is None)
+        green_gr = self.greensolver.get('green_gr')
         tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
-        np.fill_diagonal(tmp, np.multiply(self.green_gr.diagonal(), self.deph))
+        np.fill_diagonal(tmp, np.multiply(green_gr.diagonal(), self.coupling))
         self.sigma_gr = tmp
+        return
 
     def _do_sigma_lr(self):
         """Calculate the retarded self energy"""
-        assert (not self.green_lr is None)
+        green_lr = self.greensolver.get('green_lr')
         tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
-        np.fill_diagonal(tmp, np.multiply(self.green_lr.diagonal(), self.deph))
+        np.fill_diagonal(tmp, np.multiply(green_lr.diagonal(), self.coupling))
         self.sigma_lr = tmp
+        return
 
 
 class MCDephasing(Lead):
@@ -198,8 +199,8 @@ class MCDephasing(Lead):
         4) gamma
 
         invar:
-        1) deph
-        dephasing parameter (numpy.array, float)
+        1) coupling
+        coupling strength (numpy.array, float)
         2) eqgreen
         equilibrium green's function for calculation of self energy
         3) green_gr
@@ -217,25 +218,25 @@ class MCDephasing(Lead):
 
         #Invar
         #================================
-        self.deph = None
+        self.coupling = None
         self.green_gr = None
         self.eqgreen = None
         #================================
 
         #Base constructors
         position = 0
-        self.size = deph.size
+        self.size = 0
         Lead.__init__(self, position)
 
-    def set_deph(self, deph):
+    def set_coupling(self, coupling):
         """Set a new dephasing parameter"""
-        assert (type(deph) == np.ndarray)
-        assert (deph.size == self.size)
-        self.cleandep_deph()
-        self._deph = deph
+        assert (type(coupling) == np.ndarray)
+        assert (coupling.size == self.size)
+        self.cleandep_coupling()
+        self.coupling = coupling
         return
 
-    def cleandep_deph(self):
+    def cleandep_coupling(self):
         self._sigma = None
         self._sigma_gr = None
         self._sigma_lr = None
@@ -277,17 +278,17 @@ class MCDephasing(Lead):
     def _do_sigma(self):
         """Calculate the retarded self energy"""
         assert (not self.eqgreen is None)
-        self._sigma = self.eqgreen * self._deph
+        self.sigma = self.eqgreen * self.coupling
 
     def _do_sigma_gr(self):
         """Calculate the greater self energy"""
         assert (not self.green_gr is None)
-        self._sigma_gr = self.green_gr * self._deph
+        self.sigma_gr = self.green_gr * self.coupling
 
     def _do_sigma_lr(self):
         """Calculate the greater self energy"""
         assert (not self.green_lr is None)
-        self._sigma_lr = self.green_gr.H * self._deph
+        self.sigma_lr = self.green_gr.H * self.coupling
 
 
 class PhysicalLead(Lead):
@@ -317,24 +318,15 @@ class PhysicalLead(Lead):
         #Base constructors
         Lead.__init__(self, position)
 
-    def set_mu(self, mu):
-        """Set a chemical potential, for nonequilibrium self energy"""
-        self.mu = mu
-        self.cleandep_mu()
-        return
 
-    def set_temp(self, temp):
+    def set_temperature(self, temperature):
         """Set temperature, for non equilibrium self energy"""
-        self.temp = temp
-        self.cleandep_temp()
+        self.temperature = temperature
+        self.cleandep_temperature()
         return
 
-    def cleandep_mu(self):
-        self.sigma_gr = None
-        self.sigma_lr = None
-        return
 
-    def cleandep_temp(self):
+    def cleandep_temperature(self):
         self.sigma_gr = None
         self.sigma_lr = None
         return
@@ -365,7 +357,7 @@ class PhysicalLeadFermion(PhysicalLead):
         1) energy (float)
         2) mu (float)
         chemical potential
-        3) temp
+        3) temperature
         temperature
 
         outvar:
@@ -407,6 +399,7 @@ class PhysicalLeadFermion(PhysicalLead):
         #Invar
         #============================
         self.energy = None
+        self.mu = 0.0
         #============================
 
         #Base constructor
@@ -424,6 +417,17 @@ class PhysicalLeadFermion(PhysicalLead):
         self.sigma = None
         self.sigma_lr = None
         self.sigma_gr = None
+        return
+
+    def set_mu(self, mu):
+        """Set a chemical potential, for nonequilibrium self energy"""
+        self.mu = mu
+        self.cleandep_mu()
+        return
+
+    def cleandep_mu(self):
+        self.sigma_gr = None
+        self.sigma_lr = None
         return
 
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
@@ -467,13 +471,13 @@ class PhysicalLeadFermion(PhysicalLead):
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_lr = (dist.fermi(self.energy, self.mu, temppot=self.temp) *
+        self.sigma_lr = (dist.fermi(self.energy, self.mu, temppot=self.temperature) *
                          1j * self.get_gamma())
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_gr = ((dist.fermi(self.energy, self.mu, temppot=self.temp)
+        self.sigma_gr = ((dist.fermi(self.energy, self.mu, temppot=self.temperature)
                           - 1.0) * 1j * self.get_gamma())
 
 
@@ -571,9 +575,8 @@ class PhysicalLeadPhonon(PhysicalLead):
 
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
-        assert (not self.mu is None)
         energy = self.frequency * consts.hbar_eV_fs
-        self.sigma_lr = ((dist.bose(energy, self.mu, temppot=self.temp)) *
+        self.sigma_lr = ((dist.bose(energy, 0.0, temppot=self.temperature)) *
                          (-1j) * self.get_gamma())
         return
 
@@ -581,7 +584,7 @@ class PhysicalLeadPhonon(PhysicalLead):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
         energy = self.frequency * consts.hbar_eV_fs
-        self.sigma_gr = ((dist.bose(energy, self.mu, temppot=self.temp)
+        self.sigma_gr = ((dist.bose(energy, self.mu, temppot=self.temperature)
                           + 1.0) * (-1j) * self.get_gamma())
         return
 
@@ -653,13 +656,13 @@ class WideBandFermion(PhysicalLead):
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_lr = (dist.fermi(self.energy, self.mu, temppot=self.temp) *
+        self.sigma_lr = (dist.fermi(self.energy, self.mu, temppot=self.temperature) *
                          1j * self.get_gamma())
         return
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_gr = ((dist.fermi(self.energy, self.mu, temppot=self.temp)
+        self.sigma_gr = ((dist.fermi(self.energy, self.mu, temppot=self.temperature)
                           - 1.0) * 1j * self.get_gamma())
         return

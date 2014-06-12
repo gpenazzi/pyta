@@ -29,7 +29,7 @@ class Solver:
         pass
 
 
-    def set(self, invarname, value, mode='replace'):
+    def set(self, invarname, value, **kwargs):
         """
         Set an input variable invar specified by a string.
         If a _set_<name> function exists in the derived class, this
@@ -40,7 +40,7 @@ class Solver:
         function_name = 'set_' + invarname
         exist = getattr(self, function_name)
         if callable(exist):
-            exist(value, mode)
+            exist(value, **kwargs)
             return
 
         member_name = invarname
@@ -85,13 +85,13 @@ class Solver:
             return exist
 
 
-    def cleandep(selfself, invarname):
+    def cleandep(self, invarname):
         """
         Clean up dependencies relying on a given input variable.
         If no cleandep action is specified in the derived class,
         it doesn't do anything
         """
-        function_name = 'cleandep_' + outvarname
+        function_name = 'cleandep_' + invarname
         exist = getattr(self, function_name, None)
         if callable(exist):
             exist()

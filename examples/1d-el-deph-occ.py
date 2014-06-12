@@ -49,58 +49,55 @@ occ_r_lead = np.zeros(en_points)
 pl_ham_l = np.matrix([onsite])
 pl_t = np.matrix([coupling_left])
 pl_ld = np.matrix([coupling_left])
-left = pyta.lead.PhysicalLeadFermion(0, pl_ham_l, pl_t, pl_ld, mu =
-        0.0)
-t_left = 100.0 * pyta.consts.kb_eV__K
-left.set_temp(t_left)
+left = pyta.lead.PhysicalLeadFermion(0, pl_ham_l, pl_t, pl_ld)
+t = 100.0 * pyta.consts.kb_eV__K
+left.set('temperature', t)
 ####################
 
 #Declare right lead
 pl_ham_r = np.matrix([onsite])
 pl_t = np.matrix([coupling_right])
 pl_ld = np.matrix([coupling_right])
-right = pyta.lead.PhysicalLeadFermion(n-1, pl_ham_r, pl_t, pl_ld, mu =
-        1.0)
+right = pyta.lead.PhysicalLeadFermion(n-1, pl_ham_r, pl_t, pl_ld)
+t = 100.0 * pyta.consts.kb_eV__K
+right.set('temperature', t)
 ###################
 
 #Declare virtual lead
 dephase_parameter = np.array(np.zeros(n))
 dephase_parameter[0:n] = 1e-2
-dephasing = pyta.lead.MRDephasing(dephase_parameter)
-t_right = 100.0 * pyta.consts.kb_eV__K
-right.set_temp(t_right)
+dephasing = pyta.lead.MRDephasing()
+dephasing.set('coupling', dephase_parameter)
 ######################
 
 # Declare Green's solver
 green_obj = pyta.green.GreenFermion(ham)
-leads = set([left, right])
-green_obj.set_leads(leads)
+leads = [left, right]
+green_obj.set('leads', leads)
 ####################################
 
+#Assign green to virtual lead
+dephasing.set('greensolver', green_obj)
 
 # Energy loop
 for ind, ener in enumerate(en):
-    green_obj.set_energy(ener)
-    green = green_obj.get_eqgreen()
-
+    print('ind',ind)
+    green_obj.set('energy', ener)
     #SCBA loop
     scba = pyta.green.SCBA(green_obj, dephasing, task='both')
     scba.do()
 
     #Occupation is determined by comparing the Non equilibrium Green's function
     #and the spectral density
-    occ_l[ind] = (np.imag(green_obj.get_green_lr()[0,0]) /
-                         green_obj.get_spectral()[0,0])
-    occ_r[ind] = (np.imag(green_obj.get_green_lr()[n-1,n-1]) /
-                         green_obj.get_spectral()[n-1,n-1])
-    occ_l2[ind] = (np.imag(green_obj.get_green_lr()[50,50]) /
-                         green_obj.get_spectral()[50,50])
-    occ_r2[ind] = (np.imag(green_obj.get_green_lr()[150,150]) /
-                         green_obj.get_spectral()[150,150])
-    occ_l_lead[ind] = (np.imag(left.get_sigma_lr()[0,0]) /
-                         left.get_gamma()[0,0])
-    occ_r_lead[ind] = (np.imag(right.get_sigma_lr()[0,0]) /
-                         right.get_gamma()[0,0])
+    occ = green_obj.get('occupation')
+    occl = left.get('occupation')
+    occr = right.get('occupation')
+    occ_l[ind] = occ[0,0]
+    occ_r[ind] = occ[n-1,n-1]
+    occ_l2[ind] = occ[50,50]
+    occ_r2[ind] = occ[150,150]
+    occ_l_lead[ind] = occl[0,0]
+    occ_r_lead[ind] = occr[0,0]
 
 #Plot the results
 plt.figure()

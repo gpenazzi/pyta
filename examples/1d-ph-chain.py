@@ -6,12 +6,9 @@ and density of states. Also the surface self-energy is shown.
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-import pyta.stats 
 import pyta.green
 import pyta.lead
-import pyta.consts
-import sys
+import matplotlib.pyplot as plt
 
 #Set energy range
 freq_points = 100
@@ -32,36 +29,33 @@ spring_pl = np.matrix([0.0])
 spring_t = np.matrix([spring_constant])
 spring_dl = np.matrix([spring_constant])
 pos = 0
-left = pyta.lead.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl, 
-        temp = 10.0)
+left = pyta.lead.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl)
+left.set('temperature', 10.0)
 pos = n-1
-right = pyta.lead.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl,
-        temp = 10.0)
+right = pyta.lead.PhysicalLeadPhonon(pos, spring_pl, spring_t, spring_dl)
+right.set('temperature', 10.0)
 #Note: chemical potential is 0 by default
 
 #Add contacts to Green solver
-leads = set([left, right])
-green_obj.set_leads(leads)
-
+leads = [left, right]
+green_obj.set('leads', leads)
 trans = np.zeros(freq_points)
 self_real = np.zeros(freq_points)
 self_imag = np.zeros(freq_points)
 #Sweep on energy
 for ind, freq in enumerate(frequencies):
-    green_obj.set_freq(freq)
-    green = green_obj.get_eqgreen()
-    #Caroli-Landauer
-    trans[ind] = (np.trace(left.get_gamma(resize = n) * 
-                  green_obj.get_eqgreen() * 
-                  right.get_gamma(resize = n) * 
-                  green_obj.get_eqgreen().H))
-    self_real[ind] = left.get_sigma().real[0,0]
-    self_imag[ind] = left.get_sigma().imag[0,0]
+    green_obj.set('frequency', freq)
+    trans[ind] = green_obj.get('transmission')
+    self_real[ind] = left.get('sigma').real[0,0]
+    self_imag[ind] = left.get('sigma').imag[0,0]
 
 plt.plot(frequencies, self_real)
+plt.title('Real part of Self Energy')
 plt.show()
 
 plt.plot(frequencies, self_imag)
+plt.title('Imaginary part of Self Energy')
 plt.show()
 plt.plot(frequencies, trans)
+plt.title('Transmission')
 plt.show()

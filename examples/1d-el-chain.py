@@ -24,8 +24,6 @@ for i in range(n-1):
     ham[i+1,i] = hopping_element
 green_solver = pyta.green.GreenFermion(ham)
 
-gr=green_solver.get('eqgreen')
-
 #Define leads
 
 ham_pl = np.matrix([onsite])
