@@ -2,6 +2,7 @@ import numpy as np
 import pyta.defaults as defaults
 import solver
 import pyta.lead
+import pyta.consts
 import copy
 
 class Green(solver.Solver):
@@ -68,10 +69,16 @@ class Green(solver.Solver):
         raise RuntimeError('Base Class Green has no _do_eqgreen method')
 
     def _do_green_gr(self):
-        """Calculate equilibrium Green's function"""
-        sigma_gr = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
-        self._add_leads(sigma_gr, 'sigma_gr')
-        self.green_gr = self.get_eqgreen() * sigma_gr * self.get_eqgreen().H
+        """Calculate equilibrium Green's function.
+        If the lesser is available avoid direct calculation of sigma_gr."""
+        if self.green_lr is not None:
+            spectral = self.get('spectral')
+            green_lr = self.get('green_lr')
+            self.green_gr = green_lr - 1j*spectral
+        else:
+            sigma_gr = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
+            self._add_leads(sigma_gr, 'sigma_gr')
+            self.green_gr = self.get_eqgreen() * sigma_gr * self.get_eqgreen().H
         return
 
     def _do_green_lr(self):
@@ -120,6 +127,18 @@ class Green(solver.Solver):
             mat[pos: pos+size, pos:pos+size] += sigma
         return
 
+    def _resize_lead_matrix(self, lead, varname):
+        """Resize a lead matrix in a matrix with the shape of the Green.
+        Elements out of the lead are set to zero.
+        Variable to be converted must be given as string."""
+        leadmat = lead.get(varname)
+        vartype = np.result_type(leadmat)
+        mat = np.zeros((self.size, self.size), dtype=vartype)
+        leadsize = leadmat.shape[0]
+        pos = lead.get('position')
+        mat[pos: pos+leadsize, pos:pos+leadsize] = leadmat
+        return mat
+
 
     def get_transmission(self, leads = None):
         """Calculate the transmission in place for a given couple of leads,
@@ -144,6 +163,16 @@ class Green(solver.Solver):
         eqgreen = self.get_eqgreen()
         trans = (np.trace(gamma1 * eqgreen * gamma2 * eqgreen.H))
         return trans
+
+    def get_meirwingreen(self, lead=None):
+        assert(lead is not None)
+        glr = self.get('green_lr')
+        ggr = self.get('green_gr')
+        sgr = self._resize_lead_matrix(lead, 'sigma_gr')
+        slr = self._resize_lead_matrix(lead, 'sigma_lr')
+        current = ((pyta.consts.e / pyta.consts.h_eVs) *
+                    np.trace(slr*ggr - sgr*glr))
+        return current
 
 
     def get_occupation(self):

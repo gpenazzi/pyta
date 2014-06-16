@@ -313,6 +313,7 @@ class PhysicalLead(Lead):
         #Invar
         #================================
         self.delta = delta
+        self.temperature = 0.0
         #================================
 
         #Base constructors
