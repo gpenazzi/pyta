@@ -6,7 +6,7 @@ import pyta.consts
 import copy
 
 class Green(solver.Solver):
-    """A class for equilibrium Green's function
+    """ Abstract Base Class for energy resolved Green's function
 
         invar:
         1) leads
@@ -49,6 +49,8 @@ class Green(solver.Solver):
         self.green_gr = None
         self.green_lr = None
         self.transmission = None
+
+        super(Green, self).__init__()
 
     def get_eqgreen(self):
         if self.eqgreen is None:
@@ -183,14 +185,14 @@ class Green(solver.Solver):
         occupation = (np.imag(diag1/ diag2))
         return occupation
 
-class GreenFermion(Green):
+class ElGreen(Green):
     """Build and manage Green's function for Fermions. Only the method which
     differentiate fermions from other particles are reimplemented here"""
 
     def __init__(self, 
             #Parameters
             ham, over = None):
-        """GreenFermion is initialized by specifying an Hamiltonian as numpy.matrix.
+        """ElGreen is initialized by specifying an Hamiltonian as numpy.matrix.
         Optionally, overlap can be specified.
         If overlap is not specified, an orthogonal basis is assumed.
 
@@ -228,7 +230,7 @@ class GreenFermion(Green):
         #=================================
 
         #Base constructor
-        Green.__init__(self, size)
+        super(ElGreen, self).__init__(size)
 
     def set_energy(self, energy):
         """Set energy point"""
@@ -265,14 +267,14 @@ class GreenFermion(Green):
         return self.eqgreen
 
 
-class GreenPhonon(Green):
+class PhGreen(Green):
     """Build and manage Green's function for phonons. Only the method which
     differentiate phonons from other particles are reimplemented here"""
     
     def __init__(self, 
             #Param
             spring, mass=None):
-        """GreenPhonon is initialized by specifying a coupling spring constant
+        """PhGreen is initialized by specifying a coupling spring constant
         matrix as numpy.matrix.
         Optionally, masses can be specified.
         Masses must be specified as a diagonal numpy.matrix
@@ -315,7 +317,7 @@ class GreenPhonon(Green):
         #=======================================
         
         #Base constructor
-        Green.__init__(self, size)
+        super(PhGreen, self).__init__(size)
 
     def set_frequency(self, frequency):
         """Set energy point"""

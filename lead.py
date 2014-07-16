@@ -18,7 +18,8 @@ import pyta.consts as consts
 
 
 class Lead(solver.Solver):
-    """A base class for managing and building up real and virtual leads. """
+    """ Abstract Class.
+        A base class for managing and building up real and virtual leads. """
 
     def __init__(self,
                  #Param
@@ -65,7 +66,7 @@ class Lead(solver.Solver):
         self.gamma = None
         #================================
 
-        solver.Solver.__init__(self)
+        super(Lead, self).__init__()
 
     def get_gamma(self):
         "Return \Gamma=j(\Sigma^{r} - \Sigma^{a})"""
@@ -83,7 +84,7 @@ class Lead(solver.Solver):
 
 
 class MRDephasing(Lead):
-    """A Lead modelling Momentum relaxing dephasing"""
+    """A virtual Lead modelling Momentum relaxing dephasing"""
 
     def __init__(self):
         """Only the name and dephasing intensity needed at first.
@@ -125,7 +126,7 @@ class MRDephasing(Lead):
 
         #Base constructors 
         position = 0
-        Lead.__init__(self, position)
+        super(MRDephasing, self).__init__(position)
 
     def set_coupling(self, coupling):
         """Set a new dephasing parameter"""
@@ -185,7 +186,7 @@ class MRDephasing(Lead):
 
 
 class MCDephasing(Lead):
-    """A Lead modelling Momentum conserving dephasing"""
+    """A virtual Lead modelling Momentum conserving dephasing"""
 
     def __init__(self):
         """Only the name and dephasing intensity needed at first.
@@ -226,7 +227,7 @@ class MCDephasing(Lead):
         #Base constructors
         position = 0
         self.size = 0
-        Lead.__init__(self, position)
+        super(MCDephasing, self).__init__(position)
 
     def set_coupling(self, coupling):
         """Set a new dephasing parameter"""
@@ -292,7 +293,8 @@ class MCDephasing(Lead):
 
 
 class PhysicalLead(Lead):
-    """A class derived from Lead for the description of physical contacts"""
+    """ Abstract Class
+        A class derived from Lead for the description of physical contacts"""
 
     def __init__(self,
                  #Param
@@ -317,7 +319,7 @@ class PhysicalLead(Lead):
         #================================
 
         #Base constructors
-        Lead.__init__(self, position)
+        super(PhysicalLead, self).__init__(position)
 
 
     def set_temperature(self, temperature):
@@ -333,8 +335,8 @@ class PhysicalLead(Lead):
         return
 
 
-class PhysicalLeadFermion(PhysicalLead):
-    """A class derived from Lead for the description of physical contacts, in
+class ElLead(PhysicalLead):
+    """A class derived from Lead for the description of electron bath, in
     the case of Fermion Green's functions"""
 
     def __init__(self,
@@ -405,7 +407,7 @@ class PhysicalLeadFermion(PhysicalLead):
 
         #Base constructor
         self.size = self.ham_ld.shape[0]
-        PhysicalLead.__init__(self, position, delta=delta)
+        super(ElLead, self).__init__(position, delta=delta)
 
     def set_energy(self, energy):
         """Set energy point"""
@@ -483,9 +485,8 @@ class PhysicalLeadFermion(PhysicalLead):
 
 
 # noinspection PyArgumentList
-class PhysicalLeadPhonon(PhysicalLead):
-    """A class derived from Lead for the description of physical contacts, in
-    the case of Fermion Green's functions"""
+class PhLead(PhysicalLead):
+    """A class derived from Lead for the description of phonon lead"""
 
     def __init__(self,
                  #Param
@@ -520,8 +521,7 @@ class PhysicalLeadPhonon(PhysicalLead):
 
         #Base constructor
         self.size = self.spring_ld.shape[0]
-        PhysicalLead.__init__(self, position,
-                              delta=delta)
+        super(PhLead).__init__(position, delta=delta)
 
     def set_frequency(self, frequency):
         """Set frequency point"""
@@ -590,7 +590,7 @@ class PhysicalLeadPhonon(PhysicalLead):
         return
 
 
-class WideBandFermion(PhysicalLead):
+class ElWideBand(PhysicalLead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
 
@@ -630,7 +630,7 @@ class WideBandFermion(PhysicalLead):
 
         #Base constructor
         size = self.ham_ld.shape[0]
-        PhysicalLead.__init__(self, position, size, delta=delta)
+        super(ElWideBand, self).__init__(position, size, delta=delta)
 
     def set_energy(self, energy):
         """Set energy point"""

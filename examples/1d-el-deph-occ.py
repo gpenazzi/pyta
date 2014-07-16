@@ -49,7 +49,7 @@ occ_r_lead = np.zeros(en_points)
 pl_ham_l = np.matrix([onsite])
 pl_t = np.matrix([coupling_left])
 pl_ld = np.matrix([coupling_left])
-left = pyta.lead.PhysicalLeadFermion(0, pl_ham_l, pl_t, pl_ld)
+left = pyta.lead.ElLead(0, pl_ham_l, pl_t, pl_ld)
 t = 100.0 * pyta.consts.kb_eV__K
 left.set('temperature', t)
 left.set('mu', 0.0)
@@ -59,7 +59,7 @@ left.set('mu', 0.0)
 pl_ham_r = np.matrix([onsite])
 pl_t = np.matrix([coupling_right])
 pl_ld = np.matrix([coupling_right])
-right = pyta.lead.PhysicalLeadFermion(n-1, pl_ham_r, pl_t, pl_ld)
+right = pyta.lead.ElLead(n-1, pl_ham_r, pl_t, pl_ld)
 t = 100.0 * pyta.consts.kb_eV__K
 right.set('temperature', t)
 right.set('mu', 1.0)
@@ -73,7 +73,7 @@ dephasing.set('coupling', dephase_parameter)
 ######################
 
 # Declare Green's solver
-green_obj = pyta.green.GreenFermion(ham)
+green_obj = pyta.green.ElGreen(ham)
 green_obj.set('leads', [left, right])
 ####################################
 

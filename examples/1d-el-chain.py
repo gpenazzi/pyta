@@ -22,7 +22,7 @@ ham = np.matrix(np.zeros((n,n)) * 1j)
 for i in range(n-1):
     ham[i,i+1] = hopping_element
     ham[i+1,i] = hopping_element
-green_solver = pyta.green.GreenFermion(ham)
+green_solver = pyta.green.ElGreen(ham)
 
 #Define leads
 
@@ -30,9 +30,9 @@ ham_pl = np.matrix([onsite])
 t_pl = np.matrix([hopping_element])
 ham_dl = np.matrix([hopping_element])
 pos = 0
-left = pyta.lead.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
+left = pyta.lead.ElLead(pos, ham_pl, t_pl, ham_dl)
 pos = n-1
-right = pyta.lead.PhysicalLeadFermion(pos, ham_pl, t_pl, ham_dl)
+right = pyta.lead.ElLead(pos, ham_pl, t_pl, ham_dl)
 
 #Add contacts to green solver
 leads = [left, right]

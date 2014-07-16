@@ -1,4 +1,4 @@
-class Solver:
+class Solver(object):
     """
     Base class for solvers in pyta. Define the general infrastructure
     and external API of a solver type class
