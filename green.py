@@ -176,6 +176,17 @@ class Green(solver.Solver):
                     np.trace(slr*ggr - sgr*glr))
         return current
 
+    def get_dattacurrent(self, lead=None):
+        """Calculate the current using the Datta version of Meir Wingreen:
+            I = Sigma_lesser * A - Gamma * G_lesser"""
+        assert(lead is not None)
+        green_n = -1.0j * self.get('green_lr')
+        sigma_n = -1.0j * self._resize_lead_matrix(lead, 'sigma_lr')
+        gamma = self._resize_lead_matrix(lead, 'gamma')
+        spectral = self.get('spectral')
+        current = ((pyta.consts.e / pyta.consts.h_eVs) *
+                    np.trace(sigma_n * spectral - gamma * green_n))
+        return current
 
     def get_occupation(self):
         """Calculate the occupation by comparing the lesser green function

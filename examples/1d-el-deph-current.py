@@ -18,7 +18,7 @@ en, step = np.linspace(-2.0, 2.0, en_points, retstep = True)
 n = 100
 #Maximum number of Self Consistent Born Approximation steps and SCBA tolerance
 scba_steps = 1000
-scba_tol = 1e-10
+scba_tol = 1e-8
 
 #Device Hamiltonian and coupling parameters
 ham = np.matrix(np.zeros((n,n)) * 1j)
