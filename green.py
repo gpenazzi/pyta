@@ -52,9 +52,9 @@ class Green(solver.Solver):
 
         super(Green, self).__init__()
 
-    def get_eqgreen(self):
+    def get_green_ret(self):
         if self.green_ret is None:
-            self._do_eqgreen()
+            self._do_green_ret()
         return self.green_ret
 
     def get_green_lr(self):
@@ -67,8 +67,8 @@ class Green(solver.Solver):
             self._do_green_gr()
         return self.green_gr
 
-    def _do_eqgreen(self):
-        raise RuntimeError('Base Class Green has no _do_eqgreen method')
+    def _do_green_ret(self):
+        raise RuntimeError('Base Class Green has no _do_green_ret method')
 
     def _do_green_gr(self):
         """Calculate equilibrium Green's function.
@@ -80,14 +80,14 @@ class Green(solver.Solver):
         else:
             sigma_gr = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
             self._add_leads(sigma_gr, 'sigma_gr')
-            self.green_gr = self.get_eqgreen() * sigma_gr * self.get_eqgreen().H
+            self.green_gr = self.get_green_ret() * sigma_gr * self.get_green_ret().H
         return
 
     def _do_green_lr(self):
         """Calculate equilibrium Green's function"""
         sigma_lr = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
         self._add_leads(sigma_lr, 'sigma_lr')
-        self.green_lr = self.get_eqgreen() * sigma_lr * self.get_eqgreen().H
+        self.green_lr = self.get_green_ret() * sigma_lr * self.get_green_ret().H
         return
 
     def set_leads(self, leads, mode='replace'):
@@ -114,8 +114,8 @@ class Green(solver.Solver):
 
     def get_spectral(self):
         """Get spectral function A = j(G^{r} - G^{a})"""
-        eqgreen = self.get_eqgreen()
-        spectral = 1j * (eqgreen - eqgreen.H)
+        green_ret = self.get_green_ret()
+        spectral = 1j * (green_ret - green_ret.H)
         return spectral
 
     def _add_leads(self, mat, varname):
@@ -162,8 +162,8 @@ class Green(solver.Solver):
         pos = lead2.get('position')
         size = lead2.get('size')
         gamma2[pos: pos+size, pos:pos+size]+=lead1.get('gamma')
-        eqgreen = self.get_eqgreen()
-        trans = (np.trace(gamma1 * eqgreen * gamma2 * eqgreen.H))
+        green_ret = self.get_green_ret()
+        trans = (np.trace(gamma1 * green_ret * gamma2 * green_ret.H))
         return trans
 
     def get_meirwingreen(self, lead=None):
@@ -195,6 +195,7 @@ class Green(solver.Solver):
         diag2 = self.get_spectral()
         occupation = (np.imag(diag1/ diag2))
         return occupation
+
 
 class ElGreen(Green):
     """Build and manage Green's function for Fermions. Only the method which
@@ -267,7 +268,7 @@ class ElGreen(Green):
                 pass
         return
 
-    def _do_eqgreen(self):
+    def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
         sigma = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
@@ -355,13 +356,75 @@ class PhGreen(Green):
         return
 
 
-    def _do_eqgreen(self):
+    def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
         esh = self.frequency * self.frequency * self.mass - self.spring
         self._add_lead_sigma(esh)
         self.green_ret = esh.I
 
         return self.green_ret
+
+
+class SCCMixer():
+    """A class to link self-consistently two inter-dependent solvers.
+    The parameters are passed through constructor. When the constructor is
+    invoked, the solvers must be still independent. Internally, a set method
+    is invoked. Self-consistency is then checked on the quantities specified
+    in input (more quantities can be converging at once).
+
+    Example: an instance foo_A of a solver class A depends on a solver class B.
+    The instance foo_B of the solver class B depends on A. The SCC is considered
+    solved when A.whatever is converged.
+
+    WITHOUT setting A.set('foo_B', B) and B.set('foo_') we call
+    >> SCCMixer = scc(A,B,varname='whatever',tol=1e-10,maxiter=1000)
+    >> scc.do()
+
+    After the cycle is finished, A and B contain the SCC solutions."""
+    def __init__(self, solver_a, solver_b, varname, tol,
+                 maxiter=1000,
+                 niter = None):
+        """
+        solver_a, solver_b : instances of solver class to be linked
+        b_in_a_name, a_in_b_name : variable names to be used to set instance b
+        varname :   string or list of strings with variables to be verified
+                    for SCC convergence
+        tol : numerical tolerance
+        maxiter : maximum number of iterations
+        niter : if specified, exit anyway after niter iterations.
+                In this case ignore tolerance
+        """
+
+        #Param
+        self.solver_a = solver_a
+        self.solver_b = solver_b
+        #varname is always stored as list
+        if not (type(varname) == str or type(varname) == list):
+            raise ValueError('varname must be a string or a list of strings')
+        if type(varname) == list:
+            for var in varname:
+                if not type(var) == str:
+                    raise ValueError('varname must be a list of strings')
+            self.varname = varname
+        if type(varname == str):
+            self.varname = [varname]
+        self.tol = tol
+        self.maxiter = maxiter
+
+    def do(self):
+        """
+        Run the scc calculation. When done, the solvers are
+        linked and contain the SCC solutions
+        """
+        solver_b = self.solver_b
+        solver_a = self.solver_a
+        local_a = copy.deepcopy(solver_a)
+        # Get all the values for convergence check, as a list
+        var_a = [solver_a.get(var) for var in self.varname]
+        raise RuntimeError('SCCMixer class not yet finished')
+        return
+
+
 
 
 class SCBA():

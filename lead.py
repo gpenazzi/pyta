@@ -157,12 +157,12 @@ class MRDephasing(Lead):
         self.sigma_ret = None
         return
 
-    def _do_sigma(self):
+    def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
-        eqgreen = self.greensolver.get('green_ret')
+        green_ret = self.greensolver.get('green_ret')
         tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
         #Note: * is an elementwise operator for ndarray types
-        np.fill_diagonal(tmp, np.multiply(eqgreen.diagonal(), self.coupling))
+        np.fill_diagonal(tmp, np.multiply(green_ret.diagonal(), self.coupling))
         self.sigma_ret = tmp
         return
 
@@ -217,7 +217,7 @@ class MCDephasing(Lead):
         #================================
         self.coupling = None
         self.green_gr = None
-        self.eqgreen = None
+        self.green_ret = None
         #================================
 
         #Base constructors
@@ -252,10 +252,10 @@ class MCDephasing(Lead):
         self.sigma_ret = None
         return
 
-    def _do_sigma(self):
+    def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
-        eqgreen = self.greensolver.get('green_ret')
-        self.sigma_ret = eqgreen * self.coupling
+        green_ret = self.greensolver.get('green_ret')
+        self.sigma_ret = green_ret * self.coupling
 
     def _do_sigma_gr(self):
         """Calculate the greater self energy"""
@@ -438,7 +438,7 @@ class ElLead(PhysicalLead):
 
         return d_00
 
-    def _do_sigma(self):
+    def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self.energy
         tau_ld = z * self.over_ld - self.ham_ld
@@ -542,7 +542,7 @@ class PhLead(PhysicalLead):
             delta = abs(d_01).max()
         return d_00
 
-    def _do_sigma(self):
+    def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         tau_ld = self.spring_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
@@ -621,7 +621,7 @@ class ElWideBand(PhysicalLead):
         self.sigma_gr = None
         return
 
-    def _do_sigma(self):
+    def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self.energy
         tau_ld = z * self.over_ld - self.ham_ld
