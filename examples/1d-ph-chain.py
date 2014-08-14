@@ -46,8 +46,8 @@ self_imag = np.zeros(freq_points)
 for ind, freq in enumerate(frequencies):
     green_obj.set('frequency', freq)
     trans[ind] = green_obj.get('transmission')
-    self_real[ind] = left.get('sigma').real[0,0]
-    self_imag[ind] = left.get('sigma').imag[0,0]
+    self_real[ind] = left.get('sigma_ret').real[0,0]
+    self_imag[ind] = left.get('sigma_ret').imag[0,0]
 
 plt.plot(frequencies, self_real)
 plt.title('Real part of Self Energy')

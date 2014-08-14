@@ -43,8 +43,8 @@ self_imag = np.zeros(en_points)
 for ind, en in enumerate(energies):
     green_solver.set('energy', en)
     trans[ind] = green_solver.get('transmission')
-    self_real[ind] = left.get('sigma').real[0,0]
-    self_imag[ind] = left.get('sigma').imag[0,0]
+    self_real[ind] = left.get('sigma_ret').real[0,0]
+    self_imag[ind] = left.get('sigma_ret').imag[0,0]
 
 print('transmission', trans)
 

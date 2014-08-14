@@ -29,7 +29,7 @@ class Lead(solver.Solver):
 
         :param position:
         outvar:
-        1) sigma
+        1) sigma_ret
         2) sigma_gr
         3) sigma_lr
         4) gamma
@@ -58,9 +58,9 @@ class Lead(solver.Solver):
         #Outvar
         #Note: not all the output variables are set in runtime as a member
         #some subclass calculates them on-the-fly directly during every get
-        #(gamma is a typical example gamma = sigma - sigma.H)
+        #(gamma is a typical example gamma = sigma_ret - sigma_ret.H)
         #================================
-        self.sigma = None
+        self.sigma_ret = None
         self.sigma_gr = None
         self.sigma_lr = None
         self.gamma = None
@@ -70,7 +70,7 @@ class Lead(solver.Solver):
 
     def get_gamma(self):
         "Return \Gamma=j(\Sigma^{r} - \Sigma^{a})"""
-        sigma = self.get('sigma')
+        sigma = self.get('sigma_ret')
         gamma = 1.j * (sigma - sigma.H)
         return gamma
 
@@ -92,7 +92,7 @@ class MRDephasing(Lead):
         to get the self energies using set_eqgreen() and set_neqgreen()
 
         outvar:
-        1) sigma
+        1) sigma_ret
         2) sigma_gr
         3) sigma_lr
         4) gamma
@@ -100,9 +100,7 @@ class MRDephasing(Lead):
         invar:
         1) deph
         dephasing parameter (numpy.array, float)
-        2) eqgreen
-        equilibrium green's function for calculation of self energy
-        3) greensolver
+        2) greensolver
         A Green solver which provides all the needed Green's function
 
         internal:
@@ -141,7 +139,7 @@ class MRDephasing(Lead):
         Clean up coupling dependencies
         :return: none
         """
-        self.sigma = None
+        self.sigma_ret = None
         self.sigma_gr = None
         self.sigma_lr = None
         return
@@ -156,16 +154,16 @@ class MRDephasing(Lead):
     def cleandep_greensolver(self):
         self.sigma_gr = None
         self.sigma_lr = None
-        self.sigma = None
+        self.sigma_ret = None
         return
 
     def _do_sigma(self):
         """Calculate the retarded self energy"""
-        eqgreen = self.greensolver.get('eqgreen')
+        eqgreen = self.greensolver.get('green_ret')
         tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
         #Note: * is an elementwise operator for ndarray types
         np.fill_diagonal(tmp, np.multiply(eqgreen.diagonal(), self.coupling))
-        self.sigma = tmp
+        self.sigma_ret = tmp
         return
 
     def _do_sigma_gr(self):
@@ -194,7 +192,7 @@ class MCDephasing(Lead):
         to get the self energies using set_eqgreen() and set_neqgreen()
 
         outvar:
-        1) sigma
+        1) sigma_ret
         2) sigma_gr
         3) sigma_lr
         4) gamma
@@ -202,10 +200,8 @@ class MCDephasing(Lead):
         invar:
         1) coupling
         coupling strength (numpy.array, float)
-        2) eqgreen
-        equilibrium green's function for calculation of self energy
-        3) green_gr
-        Keldysh green's function for calculation of self energy
+        2) greensolver
+        A Green solver which provides all the needed Green's function
 
         internal:
         2) size
@@ -243,53 +239,33 @@ class MCDephasing(Lead):
         self._sigma_lr = None
         return
 
-    def set_eqgreen(self, eqgreen):
-        """Set an equilibrium Green's function"""
-        self.eqgreen = eqgreen
-        self.size = self.eqgreen.shape[0]
-        self.cleandep_eqgreen()
-        return
-
-    def cleandep_eqgreen(self):
-        self.sigma = None
-        return
-
-    def set_green_gr(self, green_gr):
+    def set_greensolver(self, green):
         """Set a non-equilibrium Green's function (Greater)"""
-        self.green_gr = green_gr
-        self.size = self.green_gr.shape[0]
-        self.cleandep_green_gr()
+        self.greensolver = green
+        self.cleandep_greensolver()
+        self.size = green.get('size')
         return
-
-    def cleandep_green_gr(self):
+    
+    def cleandep_greensolver(self):
         self.sigma_gr = None
-        return
-
-    def set_green_lr(self, green_lr):
-        """Set a non-equilibrium Green's function (Lesser)"""
-        self.green_lr = green_lr
-        self.size = self.green_lr.shape[0]
-        self.cleandep_green_lr()
-        return
-
-    def cleandep_green_lr(self):
         self.sigma_lr = None
+        self.sigma_ret = None
         return
 
     def _do_sigma(self):
         """Calculate the retarded self energy"""
-        assert (not self.eqgreen is None)
-        self.sigma = self.eqgreen * self.coupling
+        eqgreen = self.greensolver.get('green_ret')
+        self.sigma_ret = eqgreen * self.coupling
 
     def _do_sigma_gr(self):
         """Calculate the greater self energy"""
-        assert (not self.green_gr is None)
-        self.sigma_gr = self.green_gr * self.coupling
+        green_gr = self.greensolver.get('green_gr')
+        self.sigma_gr = green_gr * self.coupling
 
     def _do_sigma_lr(self):
         """Calculate the greater self energy"""
-        assert (not self.green_lr is None)
-        self.sigma_lr = self.green_gr.H * self.coupling
+        green_lr = self.greensolver.get('green_lr')
+        self.sigma_lr = green_lr * self.coupling
 
 
 class PhysicalLead(Lead):
@@ -364,7 +340,7 @@ class ElLead(PhysicalLead):
         temperature
 
         outvar:
-        1) sigma
+        1) sigma_ret
         2) sigma_gr
         3) sigma_lr
         4) gamma
@@ -417,7 +393,7 @@ class ElLead(PhysicalLead):
         return
 
     def cleandep_energy(self):
-        self.sigma = None
+        self.sigma_ret = None
         self.sigma_lr = None
         self.sigma_gr = None
         return
@@ -468,8 +444,8 @@ class ElLead(PhysicalLead):
         tau_ld = z * self.over_ld - self.ham_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
         tau_dl = z * self.over_ld.H - self.ham_ld.H
-        self.sigma = np.dot(tau_dl, a_ld)
-        return self.sigma
+        self.sigma_ret = np.dot(tau_dl, a_ld)
+        return self.sigma_ret
 
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
@@ -531,7 +507,7 @@ class PhLead(PhysicalLead):
         return
 
     def cleandep_frequency(self):
-        self.sigma = None
+        self.sigma_ret = None
         self.sigma_lr = None
         self.sigma_gr = None
         return
@@ -571,7 +547,7 @@ class PhLead(PhysicalLead):
         tau_ld = self.spring_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
         tau_dl = self.spring_ld.H
-        self.sigma = np.dot(tau_dl, a_ld)
+        self.sigma_ret = np.dot(tau_dl, a_ld)
         return
 
     def _do_sigma_lr(self):
@@ -640,7 +616,7 @@ class ElWideBand(PhysicalLead):
         return
 
     def cleandep_energy(self):
-        self.sigma = None
+        self.sigma_ret = None
         self.sigma_lr = None
         self.sigma_gr = None
         return
@@ -651,7 +627,7 @@ class ElWideBand(PhysicalLead):
         tau_ld = z * self.over_ld - self.ham_ld
         a_ld = 1j * 2.0 * np.pi * np.dot(tau_ld, self.dos)
         tau_dl = z * self.over_ld.H - self.ham_ld.H
-        self.sigma = np.dot(tau_dl, a_ld)
+        self.sigma_ret = np.dot(tau_dl, a_ld)
         return
 
     def _do_sigma_lr(self):

@@ -17,7 +17,7 @@ class Green(solver.Solver):
         1) size
 
         outvar:
-        1) eqgreen
+        1) green_ret
         2) green_gr
         3) green_lr
         4) spectral
@@ -45,7 +45,7 @@ class Green(solver.Solver):
         self.size = size
 
         #Outvar
-        self.eqgreen = None
+        self.green_ret = None
         self.green_gr = None
         self.green_lr = None
         self.transmission = None
@@ -53,9 +53,9 @@ class Green(solver.Solver):
         super(Green, self).__init__()
 
     def get_eqgreen(self):
-        if self.eqgreen is None:
+        if self.green_ret is None:
             self._do_eqgreen()
-        return self.eqgreen
+        return self.green_ret
 
     def get_green_lr(self):
         if self.green_lr is None:
@@ -107,7 +107,7 @@ class Green(solver.Solver):
         return
 
     def cleandep_leads(self):
-        self.eqgreen = None
+        self.green_ret = None
         self.green_gr = None
         self.green_lr = None
 
@@ -253,7 +253,7 @@ class ElGreen(Green):
         return
 
     def cleandep_energy(self):
-        self.eqgreen = None
+        self.green_ret = None
         self.green_lr = None
         self.green_gr = None
 
@@ -271,11 +271,11 @@ class ElGreen(Green):
         """Calculate equilibrium Green's function"""
         sigma = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
-        self._add_leads(sigma, 'sigma')
+        self._add_leads(sigma, 'sigma_ret')
         esh -= sigma
-        self.eqgreen = esh.I
+        self.green_ret = esh.I
 
-        return self.eqgreen
+        return self.green_ret
 
 
 class PhGreen(Green):
@@ -338,7 +338,7 @@ class PhGreen(Green):
             self._spread_frequency(frequency)
 
     def cleandep_frequency(self):
-        self.eqgreen = None
+        self.green_ret = None
         self.green_lr = None
         self.green_gr = None
         return
@@ -359,9 +359,9 @@ class PhGreen(Green):
         """Calculate equilibrium Green's function"""
         esh = self.frequency * self.frequency * self.mass - self.spring
         self._add_lead_sigma(esh)
-        self.eqgreen = esh.I
+        self.green_ret = esh.I
 
-        return self.eqgreen
+        return self.green_ret
 
 
 class SCBA():
@@ -394,10 +394,10 @@ class SCBA():
         if self.task == 'both':
             #1st iteration: green without scba self energy and 1st order
             #Born self energy
-            green_buf = green.get('eqgreen')
+            green_buf = green.get('green_ret')
             green_buf_lr = green.get('green_lr')
             local.set('leads', selfener, mode='append')
-            green_local = local.get('eqgreen')
+            green_local = local.get('green_ret')
             green_local_lr = local.get('green_lr')
             green.set('leads', selfener, mode='append')
             #Now append the scba
@@ -408,20 +408,20 @@ class SCBA():
                     return
                 selfener.set('greensolver', local)
                 green.cleandep('leads')
-                green_buf = green.get('eqgreen')
+                green_buf = green.get('green_ret')
                 green_buf_lr = green.get('green_lr')
                 selfener.set('greensolver', green)
                 local.cleandep('leads')
-                green_local = local.get('eqgreen')
+                green_local = local.get('green_ret')
                 green_local_lr = local.get('green_lr')
             raise RuntimeError('SCBA loop not converged')
 
         if self.task == 'equilibrium':
             #1st iteration: green without scba self energy and 1st order
             #Born self energy
-            green_buf = green.get('eqgreen')
+            green_buf = green.get('green_ret')
             local.set('leads', selfener, mode='append')
-            green_local = local.get('eqgreen')
+            green_local = local.get('green_ret')
             green.set('leads', selfener, mode='append')
             #Now append the scba
             for ind, scba in enumerate(range(self.maxiter)):
@@ -431,10 +431,10 @@ class SCBA():
                     return
                 selfener.set('greensolver', local)
                 green.cleandep('leads')
-                green_buf = green.get('eqgreen')
+                green_buf = green.get('green_ret')
                 selfener.set('greensolver', green)
                 local.cleandep('leads')
-                green_local = local.get('eqgreen')
+                green_local = local.get('green_ret')
             raise RuntimeError('SCBA loop not converged')
 
 
