@@ -381,18 +381,27 @@ class SCCMixer():
     >> scc.do()
 
     After the cycle is finished, A and B contain the SCC solutions."""
-    def __init__(self, solver_a, solver_b, varname, tol,
+    def __init__(self, solver_a, solver_b, varname,
+                 b_in_a_name, a_in_b_name, tol,
+                 b_in_a_kwargs = {},a_in_b_kwargs = {},
                  maxiter=1000,
-                 niter = None):
+                 niter = None,
+                 mixer=None):
         """
         solver_a, solver_b : instances of solver class to be linked
-        b_in_a_name, a_in_b_name : variable names to be used to set instance b
+        b_in_a_name, b_in_a_kwargs : variable names and optional set arguments to be used
+                                    to clean dependencies of instance b in solver a
+                                    and set instance b in solver a
+        a_in_b_name, a_in_b_kwargs : variable names and optional set arguments to be used
+                                    to set instance a in solver b
         varname :   string or list of strings with variables to be verified
                     for SCC convergence
         tol : numerical tolerance
         maxiter : maximum number of iterations
         niter : if specified, exit anyway after niter iterations.
                 In this case ignore tolerance
+        mixer: None -> no mixer, A has always the recalculated value
+               {'type': 'linear', 'weight': 0.5} linear mixer A1 = weight*A1 + (1-weight)*A0
         """
 
         #Param
@@ -406,10 +415,26 @@ class SCCMixer():
                 if not type(var) == str:
                     raise ValueError('varname must be a list of strings')
             self.varname = varname
-        if type(varname == str):
+        if type(varname) == str:
             self.varname = [varname]
-        self.tol = tol
+        self.a_in_b_name = a_in_b_name
+        self.b_in_a_name = b_in_a_name
+        self.a_in_b_kwargs = a_in_b_kwargs
+        self.b_in_a_kwargs = b_in_a_kwargs
+        #Tolerance is a list of double with the size of varname, or a single double
+        if not (type(tol) == float or type(tol) == list or type(tol) == np.ndarray):
+            raise ValueError('tol must be a string or a list of strings')
+        if type(tol) == list or type(tol) == np.ndarray:
+            for val in tol:
+                if not type(val) == float:
+                    raise ValueError('tol must be a list of float or a numpy.array')
+            self.tol = tol
+        if type(tol) == float:
+            self.tol = [tol]
+        assert(len(self.tol) == len(self.varname))
         self.maxiter = maxiter
+        self.niter = niter
+        self.mixer = mixer
 
     def do(self):
         """
@@ -418,12 +443,37 @@ class SCCMixer():
         """
         solver_b = self.solver_b
         solver_a = self.solver_a
+        # local_a keeps a deepcopy buffer of An-1 for calculaiton of Bn, An
+        # We only need a deepcopy before assigning solver_b in solver_a
         local_a = copy.deepcopy(solver_a)
-        # Get all the values for convergence check, as a list
-        var_a = [solver_a.get(var) for var in self.varname]
-        raise RuntimeError('SCCMixer class not yet finished')
-        return
+        solver_a.set(self.b_in_a_name, solver_b, **self.b_in_a_kwargs)
 
+        for n in range(self.maxiter):
+            #Calculate Bn = f(An-1)
+            print('n',n)
+            solver_b.set(self.a_in_b_name, local_a, **self.a_in_b_kwargs)
+            solver_a.cleandep(self.b_in_a_name)
+            if self.mixer is not None:
+                if self.mixer['type'] == 'linear':
+                    w = self.mixer['weight']
+                    assert(w <= 1.0 and w > 0.0)
+                    for var in self.varname:
+                        solver_a.set(var, solver_a.get(var)*w + (1-w)*local_a.get(var))
+            diff = np.array([ (solver_a.get(var) - local_a.get(var)).max() for var in self.varname])
+            print('diff',diff)
+            #Exit condition
+            if self.niter is not None:
+                if n == self.niter - 1:
+                    return
+            else:
+                if np.all(diff < np.array(self.tol)):
+                    return
+            if n == self.maxiter - 1:
+                raise RuntimeError('Maximum number of iterations reached in SCCMixer')
+                return
+            local_a = copy.copy(solver_a)
+
+        return
 
 
 
@@ -432,7 +482,7 @@ class SCBA():
     def __init__(self, 
         #Params
         greensolver, selfener, tol = defaults.scbatol, maxiter=1000,
-        task='both'):
+        task='both',niter=None, mixer=None):
         """ greensolver and selfener are the solver 
         to be plugged in the loop.
         Task specify whether we loop on the equilibrium ('eq') or the Keldysh
@@ -444,7 +494,8 @@ class SCBA():
         self.tol = tol
         self.maxiter = maxiter
         self.task = task
-
+        self.niter = niter
+        self.mixer = mixer
 
 
     def do(self):
@@ -452,67 +503,9 @@ class SCBA():
 
         selfener = self.selfener
         green = self.green
-        local = copy.deepcopy(green)
 
-        if self.task == 'both':
-            #1st iteration: green without scba self energy and 1st order
-            #Born self energy
-            green_buf = green.get('green_ret')
-            green_buf_lr = green.get('green_lr')
-            local.set('leads', selfener, mode='append')
-            green_local = local.get('green_ret')
-            green_local_lr = local.get('green_lr')
-            green.set('leads', selfener, mode='append')
-            #Now append the scba
-            for ind, scba in enumerate(range(self.maxiter)):
-                err1 = (green_local - green_buf).max()
-                err2 = (green_local_lr - green_buf_lr).max()
-                if (abs(err1)<self.tol) and (abs(err2)<self.tol):
-                    return
-                selfener.set('greensolver', local)
-                green.cleandep('leads')
-                green_buf = green.get('green_ret')
-                green_buf_lr = green.get('green_lr')
-                selfener.set('greensolver', green)
-                local.cleandep('leads')
-                green_local = local.get('green_ret')
-                green_local_lr = local.get('green_lr')
-            raise RuntimeError('SCBA loop not converged')
-
-        if self.task == 'equilibrium':
-            #1st iteration: green without scba self energy and 1st order
-            #Born self energy
-            green_buf = green.get('green_ret')
-            local.set('leads', selfener, mode='append')
-            green_local = local.get('green_ret')
-            green.set('leads', selfener, mode='append')
-            #Now append the scba
-            for ind, scba in enumerate(range(self.maxiter)):
-                err1 = (green_local - green_buf).max()
-                print('SCBA loop', ind, err1)
-                if (abs(err1)<self.tol):
-                    return
-                selfener.set('greensolver', local)
-                green.cleandep('leads')
-                green_buf = green.get('green_ret')
-                selfener.set('greensolver', green)
-                local.cleandep('leads')
-                green_local = local.get('green_ret')
-            raise RuntimeError('SCBA loop not converged')
-
-
-        if self.task == 'keldysh':
-            green_buf_lr = green.get('green_lr')
-            for ind, scba in enumerate(range(self.maxiter)):
-                green_buf_lr = self.green.get_green_lr()
-                self.selfener.set_eqgreen(self.green.get_eqgreen())
-                self.selfener.set_green_lr(self.green.get_green_lr())
-                self.green.set_lead(self.selfener)
-                green_after = self.green.get_eqgreen()
-                green_after_lr = self.green.get_green_lr()
-                err2 = (green_after_lr - green_buf_lr).max()
-                if (abs(err2)<self.tol):
-                    return
-            raise RuntimeError('SCBA loop not converged')
-        else:
-            raise ValueError('Unknown run mode for SCBA mixer')
+        sccmixer = SCCMixer(self.green, self.selfener, ['green_ret', 'green_lr'],
+                            'leads', 'greensolver', tol=[self.tol, self.tol],
+                            b_in_a_kwargs={'mode':'append'},
+                            maxiter=self.maxiter, niter=self.niter, mixer = self.mixer)
+        sccmixer.do()

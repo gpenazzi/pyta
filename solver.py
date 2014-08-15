@@ -38,22 +38,19 @@ class Solver(object):
         """
 
         function_name = 'set_' + invarname
-        exist = getattr(self, function_name)
+        exist = getattr(self, function_name, None)
         if callable(exist):
             exist(value, **kwargs)
             return
 
         member_name = invarname
         exist = getattr(self, member_name)
-        if mode == 'replace':
+        #Implement a very basic default, which replaces the value
+        if len(kwargs) == 0:
             exist = value
             return
-        if mode == 'sum':
-            exist += value
-            return
-        if mode == 'append':
-            exist.append(value)
-            return
+        else:
+            raise RuntimeError('default set method does not accept optional arguments')
 
         return
 
