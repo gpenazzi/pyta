@@ -90,21 +90,21 @@ class Green(solver.Solver):
         self.green_lr = self.get_green_ret() * sigma_lr * self.get_green_ret().H
         return
 
-    def set_leads(self, leads, mode='replace'):
-        """Add a Leads set"""
-        if mode == 'replace':
-            assert(type(leads) == list)
-            self.leads = leads
-        if mode == 'remove':
-            assert(isinstance(leads, pyta.lead.Lead))
-            if leads in self.leads:
-                self.leads.remove(leads)
-        if mode == 'append':
-            assert(isinstance(leads, pyta.lead.Lead))
-            assert(leads not in self.leads)
-            self.leads.append(leads)
-        self.cleandep_leads()
-        return
+    #def set_leads(self, leads, mode='replace'):
+    #    """Add a Leads set"""
+    #    if mode == 'replace':
+    #        assert(type(leads) == list)
+    #        self.leads = leads
+    #    if mode == 'remove':
+    #        assert(isinstance(leads, pyta.lead.Lead))
+    #        if leads in self.leads:
+    #            self.leads.remove(leads)
+    #    if mode == 'append':
+    #        assert(isinstance(leads, pyta.lead.Lead))
+    #        assert(leads not in self.leads)
+    #        self.leads.append(leads)
+    #    self.cleandep_leads()
+#        return
 
     def cleandep_leads(self):
         self.green_ret = None
@@ -443,7 +443,12 @@ class SCCMixer():
         """
         solver_b = self.solver_b
         solver_a = self.solver_a
-        # local_a keeps a deepcopy buffer of An-1 for calculaiton of Bn, An
+
+        # I assume that solver_a has not solver_b linked. We check if true, otherwise
+        # we remove it
+        if solver_b in solver_a.get(self.b_in_a_name):
+            solver_a.set(self.b_in_a_name, solver_b, mode='remove')
+        # local_a keeps a deepcopy buffer of An-1 for calculation of Bn, An
         # We only need a deepcopy before assigning solver_b in solver_a
         local_a = copy.deepcopy(solver_a)
         solver_a.set(self.b_in_a_name, solver_b, **self.b_in_a_kwargs)

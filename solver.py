@@ -1,3 +1,5 @@
+import collections
+
 class Solver(object):
     """
     Base class for solvers in pyta. Define the general infrastructure
@@ -37,15 +39,58 @@ class Solver(object):
         set function is invoked.
         """
 
+        # If a set function exists, it is called
         function_name = 'set_' + invarname
         exist = getattr(self, function_name, None)
         if callable(exist):
             exist(value, **kwargs)
             return
 
-        member_name = invarname
-        exist = getattr(self, member_name)
-        #Implement a very basic default, which replaces the value
+        # If not, we try to resolve it automagically
+        # If the member is not an iterable, look for
+        # a member with the given name
+        exist = getattr(self, invarname)
+        # For non iterable the accepted keywords are:
+        # mode = 'replace' : replace the value
+        # mode = 'increment': add to the current value (for non iterables)
+        # mode = 'append': append to iterable
+        # mode = 'remove': remove from iterable
+        # Only 'mode' can be set
+        if len(kwargs) > 1 and 'mode' not in kwargs:
+            raise ValueError('Unknown additional arguments in default set. Only ''mode'' is accepted.')
+        # Default implementation for non iterable
+        if not isinstance(exist, collections.Iterable):
+            if len(kwargs) == 0:
+                mode = 'replace'
+            else:
+                mode = kwargs['mode']
+            if mode == 'replace':
+                setattr(self, invarname,  value)
+            elif mode == 'increment':
+                setattr(self, invarname,  exist + value)
+            else:
+                raise ValueError('Unknown mode', mode, 'in automatic set')
+        if isinstance(exist, collections.Iterable):
+            if len(kwargs) == 0:
+                mode = 'replace'
+            else:
+                mode = kwargs['mode']
+            if mode == 'replace':
+                setattr(self, invarname,  value)
+            elif mode == 'append':
+                exist.append(value)
+            elif mode == 'remove':
+                exist.remove(value)
+            else:
+                raise ValueError('Unknown mode', mode, 'in automatic set')
+        # Call cleandep, if any
+        self.cleandep(invarname)
+        return
+
+
+
+
+
         if len(kwargs) == 0:
             exist = value
             return
