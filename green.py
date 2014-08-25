@@ -386,7 +386,9 @@ class SCCMixer():
                  b_in_a_kwargs = {},a_in_b_kwargs = {},
                  maxiter=1000,
                  niter = None,
-                 mixer=None):
+                 mixer=None,
+                 relative_tol = True,
+                 stats = False):
         """
         solver_a, solver_b : instances of solver class to be linked
         b_in_a_name, b_in_a_kwargs : variable names and optional set arguments to be used
@@ -402,6 +404,8 @@ class SCCMixer():
                 In this case ignore tolerance
         mixer: None -> no mixer, A has always the recalculated value
                {'type': 'linear', 'weight': 0.5} linear mixer A1 = weight*A1 + (1-weight)*A0
+        relative_tol : if True, the relative tolerance is considered
+        stats: if Yes, produce some output statistics
         """
 
         #Param
@@ -435,6 +439,8 @@ class SCCMixer():
         self.maxiter = maxiter
         self.niter = niter
         self.mixer = mixer
+        self.relative_tol = relative_tol
+        self.stats = stats
 
     def do(self):
         """
@@ -448,10 +454,20 @@ class SCCMixer():
         # we remove it
         if solver_b in solver_a.get(self.b_in_a_name):
             solver_a.set(self.b_in_a_name, solver_b, mode='remove')
-        # local_a keeps a deepcopy buffer of An-1 for calculation of Bn, An
-        # We only need a deepcopy before assigning solver_b in solver_a
-        local_a = copy.deepcopy(solver_a)
+        # We need to buffer the results of solver_a in a local solver to keep
+        # the result of previous iteration.
+        # Alternate implementation: make a deepcopy and you can avoid to explicitly call get(var)
+        local_a = copy.copy(solver_a)
+        for var in self.varname:
+            local_a.get(var)
+        # ----------------------------------------------------------------------------------------
         solver_a.set(self.b_in_a_name, solver_b, **self.b_in_a_kwargs)
+
+        # If filled, it contains maximum value and diff for each iterations for each variable
+        if self.stats:
+            out_stats = np.ndarray(shape=(self.maxiter, len(self.varname)*2))
+        else:
+            out_stats = None
 
         for n in range(self.maxiter):
             #Calculate Bn = f(An-1)
@@ -463,22 +479,43 @@ class SCCMixer():
                     w = self.mixer['weight']
                     assert(w <= 1.0 and w > 0.0)
                     for var in self.varname:
-                        solver_a.set(var, solver_a.get(var)*w + (1-w)*local_a.get(var))
-            diff = np.array([ (solver_a.get(var) - local_a.get(var)).max() for var in self.varname])
-            print('diff',diff)
-            #Exit condition
+                        # TODO: the mixer does not work, Glesser diverges in SCBA
+                        print('local max',(np.absolute(local_a.get(var)).max()))
+                        solver_a.set(var, solver_a.get(var)*w + (1.0-w)*local_a.get(var))
+            print('var ', var,' solver_a', solver_a.get(var), ' local ', local_a.get(var))
+
+            #Calculate difference between previous and current state
+            if self.relative_tol:
+                diff = np.array(
+                    [ (np.absolute(solver_a.get(var) - local_a.get(var))).max() /
+                      (np.absolute(solver_a.get(var))).max()
+                      for var in self.varname])
+            else:
+                diff = np.array(
+                    [ (np.absolute(solver_a.get(var) - local_a.get(var))).max()
+                      for var in self.varname])
+
+            #Build some statistics, if needed
+            if self.stats:
+                out_stats[n, ::2] = diff
+                maxval = np.array([ (np.absolute(solver_a.get(var))).max() for var in self.varname])
+                out_stats[n, 1::2] = maxval
+            if not self.stats:
+                out_stats = None
+
+            #Verify exit condition
             if self.niter is not None:
                 if n == self.niter - 1:
-                    return
+                    return out_stats[:n, :]
             else:
                 if np.all(diff < np.array(self.tol)):
-                    return
+                    return out_stats[:n, :]
             if n == self.maxiter - 1:
                 raise RuntimeError('Maximum number of iterations reached in SCCMixer')
-                return
+                return out_stats[:n, :]
             local_a = copy.copy(solver_a)
 
-        return
+        return out_stats
 
 
 
@@ -487,11 +524,12 @@ class SCBA():
     def __init__(self, 
         #Params
         greensolver, selfener, tol = defaults.scbatol, maxiter=1000,
-        task='both',niter=None, mixer=None):
+        task='both',niter=None, mixer=None, stats = False):
         """ greensolver and selfener are the solver 
         to be plugged in the loop.
         Task specify whether we loop on the equilibrium ('eq') or the Keldysh
-        ('keldysh') or both"""
+        ('keldysh') or both.
+        If the tolerance is a single scalar, the same tolerance is applied to both """
 
         #Param
         self.green = greensolver
@@ -501,6 +539,8 @@ class SCBA():
         self.task = task
         self.niter = niter
         self.mixer = mixer
+        self.task = task
+        self.stats = stats
 
 
     def do(self):
@@ -508,9 +548,32 @@ class SCBA():
 
         selfener = self.selfener
         green = self.green
+        if self.task == 'keldysh':
+            keldysh = True
+        elif self.task == 'eq':
+            eq = True
+        elif self.task == 'both':
+            keldysh = True
+            eq = True
+        else:
+            raise ValueError('Unknown task. Task must be keldysh, eq or both')
 
-        sccmixer = SCCMixer(self.green, self.selfener, ['green_ret', 'green_lr'],
-                            'leads', 'greensolver', tol=[self.tol, self.tol],
-                            b_in_a_kwargs={'mode':'append'},
-                            maxiter=self.maxiter, niter=self.niter, mixer = self.mixer)
-        sccmixer.do()
+
+        if eq:
+            vars = 'green_ret'
+            tol = self.tol
+        if keldysh:
+            vars = 'green_lr'
+            tol = self.tol
+        if eq and keldysh:
+            vars = ['green_ret', 'green_lr']
+            tol = [self.tol, self.tol]
+
+        sccmixer = SCCMixer(self.green, self.selfener, vars,
+                            'leads', 'greensolver', tol=tol,
+                             b_in_a_kwargs={'mode':'append'},
+                             maxiter=self.maxiter, niter=self.niter,
+                             mixer = self.mixer, stats = self.stats,
+                             relative_tol = False)
+        stats = sccmixer.do()
+        return stats

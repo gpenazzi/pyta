@@ -134,11 +134,15 @@ class Solver(object):
         it doesn't do anything
         """
         function_name = 'cleandep_' + invarname
-        exist = getattr(self, function_name, None)
-        if callable(exist):
+        try:
+            exist = getattr(self, function_name)
             exist()
-            return
-        else:
-            errorstring = 'Could not find cleandep method for variable' + str(invarname)
-            raise ValueError(errorstring)
+        except AttributeError:
+            pass
+        #if callable(exist):
+        #    exist()
+        #    return
+        #else:
+        #    errorstring = 'Could not find cleandep method for variable' + str(invarname)
+        #    raise ValueError(errorstring)
 
