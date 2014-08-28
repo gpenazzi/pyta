@@ -122,6 +122,66 @@ class CubicGrid:
                             outfile.write('{}  '.format(
                                 var[ii, jj, kk]))
 
+    def dump_to_vtk(self, var, filename = 'tmp.cube', header = "var"):
+        """Write orbital to cube file """
+        with open(filename, 'w') as outfile:
+            #REMINDER: in cube file negative voxel length means Angstrom Units
+            outfile.write('# vtk DataFile Version 3.0 \n')
+            outfile.write('vtk output \n')
+            outfile.write('ASCII\n')
+            outfile.write('DATASET STRUCTURED_POINTS\n')
+            outfile.write('DIMENSIONS ')
+            outfile.write('{} {} {}\n'.format(self._npoints[0],
+                                              self._npoints[1], self._npoints[2]))
+            outfile.write('SPACING ')
+            outfile.write('{} {} {}\n'.format(self._step[0],
+                                              self._step[1], self._step[2]))
+            outfile.write('ORIGIN ')
+            outfile.write('{} {} {}\n'.format(self._rmin[0],
+                                              self._rmin[1], self._rmin[2]))
+            outfile.write('POINT_DATA ')
+            outfile.write('{}\n'.format(self._npoints[0] * self._npoints[1]
+                                        * self._npoints[2]))
+            outfile.write('SCALARS var%0A float\n')
+            outfile.write('LOOKUP_TABLE default\n')
+            for ii in range(self._npoints[2]):
+                for jj in range(self._npoints[1]):
+                    for kk in range(self._npoints[0]):
+                        outfile.write('{}\n'.format(
+                            var[kk, jj, ii]))
+
+    def dump_vec_to_vtk(self, var, filename = 'tmp.cube', header = "var"):
+        """Write orbital to cube file """
+        with open(filename, 'w') as outfile:
+            #REMINDER: in cube file negative voxel length means Angstrom Units
+            outfile.write('# vtk DataFile Version 3.0 \n')
+            outfile.write('vtk output \n')
+            outfile.write('ASCII\n')
+            outfile.write('DATASET UNSTRUCTURED_GRID\n')
+            outfile.write('POINTS {} float\n'.format(self._nnodes))
+            for ii in range(self._npoints[2]):
+                for jj in range(self._npoints[1]):
+                    for kk in range(self._npoints[0]):
+                        coord = self.get_space_coord(np.array([kk,jj,ii]))
+                        outfile.write('{} {} {}\n'.format(
+                            coord[0], coord[1], coord[2]))
+            outfile.write('\nCELLS {} {}\n'.format(self._nnodes, 2*self._nnodes))
+            for ind in range(self._nnodes):
+                outfile.write('1 {}\n'.format(ind))
+            outfile.write('\nCELL_TYPES {}\n'.format(self._nnodes))
+            for ind in range(self._nnodes):
+                outfile.write('1\n'.format())
+            outfile.write('\nPOINT_DATA {}\n'.format(self._nnodes))
+            outfile.write('VECTORS local_current float\n'.format())
+            for ii in range(self._npoints[2]):
+                for jj in range(self._npoints[1]):
+                    for kk in range(self._npoints[0]):
+                        outfile.write('{} {} {}\n'.format(
+                            var[kk, jj, ii, 0], var[kk, jj, ii, 1],
+                            var[kk, jj, ii, 2]))
+
+
+
     def get_grid_coord(self, coord):
         """Gives the i,j,k coordinates on the grid for a given real space
         coordinate (round down). None means that we are out of 
@@ -139,6 +199,12 @@ class CubicGrid:
         dist = coord - grid_coord * self._step
 
         return (grid_coord, dist)
+
+    def get_space_coord(self, coord):
+        """
+        Gives the real space coordinate for a given i,j,k integer array coordinate
+        """
+        return self._rmin + np.multiply(coord, self._res)
         
 
     def get_value(self, coord, var):

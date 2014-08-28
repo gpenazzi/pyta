@@ -42,7 +42,7 @@ class CurrentDensity:
         # Local
         self._norb = len(self._orbind)
         self._nonzerocouples = np.zeros((self._norb,2),dtype=int)
-        self._grid = pyta.grid.cubicgrid.CubicGrid((self._orb_r, self._tol),
+        self._grid = pyta.grid.CubicGrid((self._orb_r, self._tol),
                 self._res)
         
         self._j_vec = np.zeros((self._grid.get_npoints()[0],
@@ -73,6 +73,7 @@ class CurrentDensity:
 
     def do_j(self):
         """Calculate current density"""
+
 
         #UGLY UNEFFICIENT: ONLY FOR TESTING
         
@@ -165,7 +166,7 @@ class CurrentDensity:
         print('Done')
         return
 
-    def surface_flux(self, axis=2):
+    def surface_flux(self, axis=2, filename = 'flux.dat'):
         j_axis = np.zeros(self._grid.get_npoints()[axis])
         if axis==2:
             for kk, zz in enumerate(self._grid.get_grid()[2]):
@@ -174,6 +175,9 @@ class CurrentDensity:
                         j_axis[kk] = j_axis[kk] + self._j_vec[ii, jj, kk, 2]
          
         print('j_axis', j_axis)
+        with open(filename, 'w') as outfile:
+            for val in j_axis:
+                outfile.write('{} \n'.format(val))
         return j_axis
 
 
@@ -185,6 +189,25 @@ class CurrentDensity:
         self._grid.dump_to_cube(var, filename=filename, 
                 header='Current Density Magnitude')
         return
+
+    def dump_to_vtk(self, var = None, filename = 'jmag.vtk'):
+        """Write orbital to cube file """
+        if var is None:
+            var = self._j_mag
+
+        self._grid.dump_to_vtk(var, filename=filename,
+                                header='Current Density Magnitude')
+        return
+
+    def dump_vec_to_vtk(self, var = None, filename = 'jmag.vtk'):
+        """Write orbital to cube file """
+        if var is None:
+            var = self._j
+
+        self._grid.dump_vec_to_vtk(var, filename=filename,
+                               header='Current Density Magnitude')
+        return
+
 
     def get_j_mag(self):
         return self._j_mag

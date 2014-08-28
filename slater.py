@@ -1,5 +1,5 @@
 import numpy as np
-import pyta.grid.cubicgrid
+import pyta.grid
 
 """A module to build slater type orbitals and perform related operations"""
 
@@ -211,7 +211,7 @@ class SlaterType:
                 = 3.0)
 
         #Build the associated cubic grid
-        self._grid = pyta.grid.cubicgrid.CubicGrid((self._origin - cutoff,
+        self._grid = pyta.grid.CubicGrid((self._origin - cutoff,
             self._origin + cutoff), res)
         
         self._so_grid = np.zeros((self._grid.get_npoints()[0],
