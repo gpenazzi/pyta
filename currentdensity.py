@@ -164,6 +164,14 @@ class CurrentDensity:
                     self._j_mag[ii, jj, kk] = np.linalg.norm(self._j_vec[ii,
                         jj, kk, :])
         print('Done')
+        np.savez('currents', self._j_vec, self._j_mag)
+
+        return
+
+    def load(self, filename):
+        npzfile = np.load(filename)
+        self._j_vec = npzfile['arr_0']
+        self._j_mag = npzfile['arr_1']
         return
 
     def surface_flux(self, axis=2, filename = 'flux.dat'):

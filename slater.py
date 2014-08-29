@@ -176,9 +176,9 @@ class RadialFunction:
         psi = np.arctan((coord[1] - self._origin[1]) / tmp_x)
         if np.isnan(psi):
             psi = 0.0
-
-        val[0] = rad_d * np.sin(teta) * np.cos(psi)
-        val[1] = rad_d * np.sin(teta) * np.sin(psi)
+        sinteta = np.sin(teta)
+        val[0] = rad_d * sinteta * np.cos(psi)
+        val[1] = rad_d * sinteta * np.sin(psi)
         val[2] = rad_d * np.cos(teta)
 
         return val
