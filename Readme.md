@@ -25,7 +25,7 @@ There is no explicit solve or run commands (here comes the dynamic part). The co
 Is the coding philosophy respected all over?
 =============================
 No, it is not. Some simple analytics or utilities are written in a plain non object-oriented style, it is not worth it to try to make everything more complicated than already is. 
-Also not everything can fit in such a simple functional like design. This solver structure works fine for sequential workflows but is prone to ill-defined recursive cross dependencies. This tipically happens when two solver depend on each other, a simple case is an SCC loop. Therefore I already needed to add a slightly different class to mix solvers (for the SCBA loop, in my case). These kind of class works in place, therefore they don't have a defined output. Rather, they change the state of the solvers.
+Also not everything can work flawlessly as I am not sure whether the design principles are general enough. This solver structure works fine for sequential workflows but is prone to ill-defined recursive cross dependencies. This tipically happens when two solver depend on each other, a simple case is an SCC loop. Therefore potentially recursive interdependencies must be carefully managed. An example is already implemented as a simple general SCC linear mixer, which is internally used to provide SCBA self-energy corrections. This kind of class doesn't have a defined output. Rather, it changes the state of the solvers.
 
 
 Pyta is terrible, what else can I use?
