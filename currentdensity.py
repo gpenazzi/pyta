@@ -3,6 +3,9 @@ import pyta.grid
 
 """Methods and class to build real space current density"""
 
+au_to_nm = 5.2918e-2
+au_to_ang = 5.2918e-1
+
 class CurrentDensity:
     """ A class to calculate and plot real space resolved current density"""
     def __init__(self, 
@@ -108,12 +111,11 @@ class CurrentDensity:
     
     def do_j_improved(self):
         """Calculate current density"""
-
         #FIND SOMETHING SMART HERE
         #For any nonzero density matrix couple define maximum and minimum
         #ii,jj,kk and then make a dictionary, cycle on the items and on
         #subblocks
-        local_cutoff = 8.0
+        #local_cutoff = 12.0
         for ii_nnz in range(self._weight.nnz):
             if np.mod(ii_nnz, 50) == 0:
                 print('nzval', ii_nnz, ' of ', self._weight.nnz)
@@ -122,9 +124,9 @@ class CurrentDensity:
             j_orb = self._weight.col[ii_nnz]
             if i_orb == j_orb:
                 continue
-            #i_storb = self._orb[self._orbind[i_orb]]
-            #j_storb = self._orb[self._orbind[j_orb]]
-            #local_cutoff = i_storb.get_cutoff() + j_storb.get_cutoff()
+            i_storb = self._orb[self._orbind[i_orb]]
+            j_storb = self._orb[self._orbind[j_orb]]
+            local_cutoff = i_storb.get_cutoff() + j_storb.get_cutoff()
             i_coord = self._orb_r[i_orb,:]
             j_coord = self._orb_r[j_orb,:]
             if ((abs(i_coord - j_coord) > local_cutoff).any()
@@ -154,7 +156,10 @@ class CurrentDensity:
                             self._grid.get_grid()[2][ind_min[2]:ind_max[2]+1]):
                         
                         coord = np.array([xx, yy, zz])
-                        tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord)
+                        #NOTE: units conversion in mA/nm^2
+                        #Assuming to get only the current operator from the density matrix
+                        conversion = 0.9839e2
+                        tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord) * conversion
                         self._j_vec[ii + ind_min[0], jj + ind_min[1], kk +
                                 ind_min[2], :] += tmp_j_vec
 
@@ -175,12 +180,17 @@ class CurrentDensity:
         return
 
     def surface_flux(self, axis=2, filename = 'flux.dat'):
+        """
+        Calculate the flux integral along x axis. We assume that
+        the current is evaluated in mA/nm^2 and return a value in mA
+        """
+        conversion = au_to_nm * au_to_nm * self._res * self._res
         j_axis = np.zeros(self._grid.get_npoints()[axis])
         if axis==2:
             for kk, zz in enumerate(self._grid.get_grid()[2]):
                 for ii, xx in enumerate(self._grid.get_grid()[0]):
                     for jj, yy in enumerate(self._grid.get_grid()[1]):
-                        j_axis[kk] = j_axis[kk] + self._j_vec[ii, jj, kk, 2]
+                        j_axis[kk] = j_axis[kk] + self._j_vec[ii, jj, kk, 2] * conversion
          
         print('j_axis', j_axis)
         with open(filename, 'w') as outfile:
@@ -195,7 +205,8 @@ class CurrentDensity:
             var = self._j_mag
 
         self._grid.dump_to_cube(var, filename=filename, 
-                header='Current Density Magnitude')
+                header='Current Density Magnitude',
+                conversion = au_to_ang)
         return
 
     def dump_to_vtk(self, var = None, filename = 'jmag.vtk'):
@@ -204,7 +215,8 @@ class CurrentDensity:
             var = self._j_mag
 
         self._grid.dump_to_vtk(var, filename=filename,
-                                header='Current Density Magnitude')
+                                header='Current Density Magnitude',
+                                conversion = au_to_ang)
         return
 
     def dump_vec_to_vtk(self, var = None, filename = 'jmag.vtk'):
@@ -213,7 +225,8 @@ class CurrentDensity:
             var = self._j
 
         self._grid.dump_vec_to_vtk(var, filename=filename,
-                               header='Current Density Magnitude')
+                               header='Current Density Magnitude',
+                               conversion = au_to_ang)
         return
 
 

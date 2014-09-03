@@ -101,7 +101,7 @@ def grad_realtessy(ll, mm, coord, origin, near_cutoff = near_cutoff):
 
 class RadialFunction:
     """A class storing data far the radial function of the slater orbital"""
-    def __init__(self, ll, origin, exp_coeff, pow_coeff, cutoff = 5.0):
+    def __init__(self, ll, origin, exp_coeff, pow_coeff, cutoff = 7.0):
         """ ll: angular quantum number
             coord: where the radial function is centered
             exp_coeff: array with exponential coefficients
@@ -187,7 +187,7 @@ class RadialFunction:
 
 class SlaterType:
     """A class to build slater type orbitals and perform related operations"""
-    def __init__(self, ll, mm, exp_coeff, pow_coeff, res = 0.1, cutoff = 6.0,
+    def __init__(self, ll, mm, exp_coeff, pow_coeff, res = 0.1, cutoff = 7.0,
             save=None, load=None):
         """ ll: angular quantum number
             coord: where the radial function is centered

@@ -81,7 +81,6 @@ class CubicGrid:
         else:
             rmin = rmin - tol
             rmax = rmax + tol
-            
 
         return (rmin, rmax)
 
@@ -101,20 +100,21 @@ class CubicGrid:
             self._nnodes *= npoints
         return
 
-    def dump_to_cube(self, var, filename = 'tmp.cube', header = "Created with PYTA"):
+    def dump_to_cube(self, var, filename = 'tmp.cube', header = "Created with PYTA",
+                     conversion = 1.0):
         """Write orbital to cube file """
         with open(filename, 'w') as outfile:
             #REMINDER: in cube file negative voxel length means Angstrom Units
                 outfile.write('Pyta cube file \n')
                 outfile.write(header + '\n')
-                outfile.write('{} {} {} {} \n'.format(1, self._rmin[0],
-                    self._rmin[1], self._rmin[2]))
+                outfile.write('{} {} {} {} \n'.format(1, self._rmin[0] * conversion,
+                    self._rmin[1] * conversion, self._rmin[2] * conversion))
                 outfile.write('{} {} {} {}\n'.format(self._npoints[0], 
-                    self._step[0], 0.0, 0.0))
+                    self._step[0] * conversion, 0.0, 0.0))
                 outfile.write('{} {} {} {}\n'.format(self._npoints[1], 
-                    0.0, self._step[1], 0.0))
+                    0.0, self._step[1] * conversion, 0.0))
                 outfile.write('{} {} {} {}\n'.format(self._npoints[2], 
-                    0.0, 0.0, self._step[2]))
+                    0.0, 0.0, self._step[2] *  conversion))
                 outfile.write('{} {} {} {} {} \n'.format(1, 0.0, 0.0, 0.0, 0.0))
                 for ii in range(self._npoints[0]):
                     for jj in range(self._npoints[1]):
@@ -122,7 +122,7 @@ class CubicGrid:
                             outfile.write('{}  '.format(
                                 var[ii, jj, kk]))
 
-    def dump_to_vtk(self, var, filename = 'tmp.cube', header = "var"):
+    def dump_to_vtk(self, var, filename = 'tmp.cube', header = "var", conversion = 1.0):
         """Write orbital to cube file """
         with open(filename, 'w') as outfile:
             #REMINDER: in cube file negative voxel length means Angstrom Units
@@ -134,11 +134,13 @@ class CubicGrid:
             outfile.write('{} {} {}\n'.format(self._npoints[0],
                                               self._npoints[1], self._npoints[2]))
             outfile.write('SPACING ')
-            outfile.write('{} {} {}\n'.format(self._step[0],
-                                              self._step[1], self._step[2]))
+            outfile.write('{} {} {}\n'.format(self._step[0] * conversion,
+                                              self._step[1] * conversion,
+                                              self._step[2] * conversion))
             outfile.write('ORIGIN ')
-            outfile.write('{} {} {}\n'.format(self._rmin[0],
-                                              self._rmin[1], self._rmin[2]))
+            outfile.write('{} {} {}\n'.format(self._rmin[0] * conversion,
+                                              self._rmin[1] * conversion,
+                                              self._rmin[2] * conversion))
             outfile.write('POINT_DATA ')
             outfile.write('{}\n'.format(self._npoints[0] * self._npoints[1]
                                         * self._npoints[2]))
@@ -150,7 +152,7 @@ class CubicGrid:
                         outfile.write('{}\n'.format(
                             var[kk, jj, ii]))
 
-    def dump_vec_to_vtk(self, var, filename = 'tmp.cube', header = "var"):
+    def dump_vec_to_vtk(self, var, filename = 'tmp.cube', header = "var", conversion = 1.0):
         """Write orbital to cube file """
         with open(filename, 'w') as outfile:
             #REMINDER: in cube file negative voxel length means Angstrom Units
@@ -162,7 +164,7 @@ class CubicGrid:
             for ii in range(self._npoints[2]):
                 for jj in range(self._npoints[1]):
                     for kk in range(self._npoints[0]):
-                        coord = self.get_space_coord(np.array([kk,jj,ii]))
+                        coord = self.get_space_coord(np.array([kk,jj,ii])) * conversion
                         outfile.write('{} {} {}\n'.format(
                             coord[0], coord[1], coord[2]))
             outfile.write('\nCELLS {} {}\n'.format(self._nnodes, 2*self._nnodes))
