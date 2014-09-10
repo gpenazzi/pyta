@@ -423,7 +423,7 @@ class ElLead(PhysicalLead):
         d_00 = z * self.over.H - self.ham.H
         d_11 = d_00.copy()
         d_10 = z * self.over_t - self.ham_t
-        d_01 = d_10.H
+        d_01 = z * self.over_t.H - self.ham_t.H
         delta = tol + 1
         while delta > tol:
             a = np.linalg.solve(d_11, d_01)
@@ -435,7 +435,6 @@ class ElLead(PhysicalLead):
             d_01 = -np.dot(d_01, a)
             d_10 = -np.dot(d_10, b)
             delta = abs(d_01).max()
-
         return d_00
 
     def _do_sigma_ret(self):

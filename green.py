@@ -161,12 +161,16 @@ class Green(solver.Solver):
         gamma2 = np.zeros((self.size, self.size))
         pos = lead2.get('position')
         size = lead2.get('size')
-        gamma2[pos: pos+size, pos:pos+size]+=lead1.get('gamma')
+        gamma2[pos: pos+size, pos:pos+size]+=lead2.get('gamma')
         green_ret = self.get_green_ret()
         trans = (np.trace(gamma1 * green_ret * gamma2 * green_ret.H))
         return trans
 
     def get_meirwingreen(self, lead=None):
+        """
+        Calculate the total current in a specified lead
+        by applying the Meir-Wirgreen
+        """
         assert(lead is not None)
         glr = self.get('green_lr')
         ggr = self.get('green_gr')
@@ -175,6 +179,8 @@ class Green(solver.Solver):
         current = ((pyta.consts.e / pyta.consts.h_eVs) *
                     np.trace(slr*ggr - sgr*glr))
         return current
+
+
 
     def get_dattacurrent(self, lead=None):
         """Calculate the current using the Datta version of Meir Wingreen:
@@ -229,8 +235,9 @@ class ElGreen(Green):
         #Param
         #========================================================
         assert(type(ham) == np.matrixlib.defmatrix.matrix)
-        if over:
+        if over is not None:
             assert(type(over) == np.matrixlib.defmatrix.matrix)
+            self.over = over
         self.ham = ham
         size = len(self.ham)
         if over is None:
@@ -267,6 +274,21 @@ class ElGreen(Green):
             except AttributeError:
                 pass
         return
+
+
+    def get_local_currents(self):
+        """
+        Calculate the matrices of local currents for all orbitals in the system
+        """
+        green_lr = self.get('green_lr')
+        ham = self.ham
+        over = self.over
+        en = self.energy
+        lc = np.real(np.multiply(2.*(ham - en * over), green_lr))
+        print('lc',lc[1,2], 'energy ', en, 'gl', green_lr[1,:])
+        return lc
+
+
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
