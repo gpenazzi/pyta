@@ -36,7 +36,8 @@ pos = 0
 left = pyta.lead.ElLead(pos, ham_pl, t_pl, ham_dl)
 left.set('mu', -2.0)
 pos = n-2
-#Note: this pl, dl ordering is somewhat the opposite of what I thought
+#Note: the convention in pyta is that ham_ld is passe, that's why
+#      we need this transpose here
 right = pyta.lead.ElLead(pos, ham_pl, t_pl.T, ham_dl.T)
 right.set('mu', 2.0)
 
