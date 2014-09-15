@@ -86,7 +86,9 @@ class Lead(solver.Solver):
 class MRDephasing(Lead):
     """A virtual Lead modelling Momentum relaxing dephasing"""
 
-    def __init__(self):
+    def __init__(self,
+                #Invar
+                deph=None):
         """Only the name and dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
         to get the self energies using set_eqgreen() and set_neqgreen()
@@ -496,7 +498,7 @@ class PhLead(PhysicalLead):
 
         #Base constructor
         self.size = self.spring_ld.shape[0]
-        super(PhLead).__init__(position, delta=delta)
+        super(PhLead, self).__init__(position, delta=delta)
 
     def set_frequency(self, frequency):
         """Set frequency point"""
@@ -572,7 +574,9 @@ class ElWideBand(PhysicalLead):
     def __init__(self,
                  #Param
                  position, dos, ham_ld, over_ld=None,
-                 delta=defaults.delta):
+                 delta=defaults.delta,
+                 #Invar
+                 mu=None):
         """
         The following quantities must be specified:
 
@@ -594,23 +598,24 @@ class ElWideBand(PhysicalLead):
 
         #Set defaults
         self.pl_size = self.ham_ld.shape[0]
-        if not over_ld:
+        if over_ld is None:
             self.over_ld = np.matrix(np.zeros(self.ham_ld.shape))
         #===========================================================
 
         #Invar
         #============================
         self.energy = None
+        self.mu = mu
         #============================
 
         #Base constructor
-        size = self.ham_ld.shape[0]
-        super(ElWideBand, self).__init__(position, size, delta=delta)
+        self.size = self.ham_ld.shape[0]
+        super(ElWideBand, self).__init__(position, delta=delta)
 
     def set_energy(self, energy):
         """Set energy point"""
-        if energy != self._energy:
-            self._energy = energy
+        if energy != self.energy:
+            self.energy = energy
             self.cleandep_energy()
         return
 
@@ -623,10 +628,11 @@ class ElWideBand(PhysicalLead):
     def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self.energy
+        dos_mat = np.zeros((self.pl_size, self.pl_size))
+        np.fill_diagonal(dos_mat, self.dos)
         tau_ld = z * self.over_ld - self.ham_ld
-        a_ld = 1j * 2.0 * np.pi * np.dot(tau_ld, self.dos)
-        tau_dl = z * self.over_ld.H - self.ham_ld.H
-        self.sigma_ret = np.dot(tau_dl, a_ld)
+        a_ld = -1j * np.pi * np.dot(tau_ld, self.dos)
+        self.sigma_ret = np.dot(a_ld, tau_ld.H)
         return
 
     def _do_sigma_lr(self):

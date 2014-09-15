@@ -187,7 +187,7 @@ class RadialFunction:
 
 class SlaterType:
     """A class to build slater type orbitals and perform related operations"""
-    def __init__(self, ll, mm, exp_coeff, pow_coeff, res = 0.1, cutoff = 7.0,
+    def __init__(self, ll, mm, exp_coeff, pow_coeff, res = 0.1, cutoff = 6.0,
             save=None, load=None):
         """ ll: angular quantum number
             coord: where the radial function is centered
@@ -208,7 +208,7 @@ class SlaterType:
         assert pow_coeff.shape[0] == exp_coeff.size
 
         self._radfunc = RadialFunction(ll, self._origin, exp_coeff, pow_coeff, cutoff
-                = 3.0)
+                = self._cutoff)
 
         #Build the associated cubic grid
         self._grid = pyta.grid.CubicGrid((self._origin - cutoff,
@@ -233,8 +233,9 @@ class SlaterType:
         print("Caching orbital", self._ll, self._mm)
         
         if load is None:
-            print("Loading cached orbitals")
+            print("Calculating orbitals")
         else:
+            print("Loading cached orbitals")
             self._so_grid = np.load(load[0])
             self._sograd_grid = np.load(load[1])
             return 0
@@ -246,7 +247,7 @@ class SlaterType:
                 for k in range(self._grid.get_npoints()[2]):
                     coord = np.array([self._grid.get_grid()[0][i], 
                         self._grid.get_grid()[1][j],
-                        self._grid.get_grid()[2][k]]) 
+                        self._grid.get_grid()[2][k]])
                     self._so_grid[i,j,k] = self._radfunc.get_value(coord) * \
                         realtessy(self._ll, self._mm, coord, zero_origin)
 
@@ -256,13 +257,15 @@ class SlaterType:
                                 self._mm, coord, zero_origin) + \
                         self._radfunc.get_value(coord) * \
                         grad_realtessy(self._ll, self._mm, 
-                                coord, zero_origin) 
+                                coord, zero_origin)
 
         if save is None:
             return 0
         else:
             self._so_grid.dump(save[0])
-            self._sograd_grid.dump(save[1]) 
+            self._grid.dump_to_vtk(np.real(self._so_grid), save[0]+'.vtk')
+            self._grid.dump_to_vtk(np.linalg.norm(self._sograd_grid, axis=3), save[1]+'.vtk')
+            self._sograd_grid.dump(save[1])
             return 0
 
         print("Done")
@@ -271,17 +274,15 @@ class SlaterType:
     def get_value(self, coord):
         """Get the orbital value at a given point coord"""
 
-        if not self._grid.is_inside(coord - self._origin):
-            return 0.0
-
-        return self._grid.get_value(coord - self._origin, self._so_grid)
+        val = self._grid.get_value(coord - self._origin, self._so_grid)
+        return val
 
         
     def get_grad(self, coord):
         """Get the orbital value at a given point coord"""
 
-        if not self._grid.is_inside(coord - self._origin):
-            return np.zeros(3)
+        #if not self._grid.is_inside(coord - self._origin):
+        #    return np.zeros(3)
 
         return self._grid.get_value(coord - 
                 self._origin, self._sograd_grid)

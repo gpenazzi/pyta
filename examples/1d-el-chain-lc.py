@@ -52,6 +52,8 @@ for ind, en in enumerate(energies):
     green_solver.set('energy', en)
     trans[ind] = green_solver.get('transmission')
     loc_trans[ind] = np.real(np.sum(green_solver.get_local_currents()[0,:]))
+    loc_trans[ind] += np.real(np.sum(green_solver.get_local_currents()[1,:]))
+    loc_trans[ind] += np.real(np.sum(green_solver.get_local_currents()[2,:]))
     self_real[ind] = right.get('sigma_ret').real[1,1]
     self_imag[ind] = right.get('sigma_ret').imag[1,1]
 

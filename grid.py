@@ -190,14 +190,24 @@ class CubicGrid:
         boundaries.
         
         Return the grid coordinates and the distance between the exact point and
-    coord."""
+        coord.
+        COMPATIBLE WITH 2D COORDS"""
 
-        for ii in range(self._dim):
-            if coord[ii] < self._rmin[ii] or coord[ii] > self._rmax[ii]:
-                return (None, 0.0)
+        if coord.ndim == 1:
+            local_coord = np.zeros(shape=(1,coord.shape[0]))
+            local_coord[0,:] = coord
+        else:
+            local_coord = coord
+        out_of_grid = coord < self._rmin
+        if out_of_grid.any():
+            raise ValueError('Requested coordinates out of the grid')
+
+        #for ii in range(self._dim):
+        #    if coord[ii] < self._rmin[ii] or coord[ii] > self._rmax[ii]:
+        #        return (None, 0.0)
 
         shift_coord = coord - self._rmin
-        grid_coord = np.array(np.trunc(shift_coord / self._step), dtype=int)
+        grid_coord = np.trunc(shift_coord / self._step).astype(int)
         dist = coord - grid_coord * self._step
 
         return (grid_coord, dist)
@@ -212,13 +222,16 @@ class CubicGrid:
     def get_value(self, coord, var):
         """Get the value of a grid variable at a given point coord"""
 
-        if not self.is_inside(coord):
-            return None
+        #if not self.is_inside(coord):
+        #    return 0.0
 
         grid_coord, dist = self.get_grid_coord(coord)
         #JUST TO BE EASY I NOW RETURN THE LEFT VALUE BUT I'LL NEED TO
         #INTERPOLATE
-        val = var[tuple(grid_coord)]
+        if grid_coord.ndim > 1:
+            val = var[[grid_coord[:,0], grid_coord[:,1], grid_coord[:,2]]]
+        else:
+            val = var[grid_coord]
 
         return val
     

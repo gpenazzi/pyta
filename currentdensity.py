@@ -69,16 +69,35 @@ class CurrentDensity:
             (j_coord < -j_orb.get_cutoff()).any()):
             return np.zeros(3)
         else:
-            val = i_orb.get_value(i_coord) * j_orb.get_grad(j_coord) - \
-                    i_orb.get_grad(i_coord) * j_orb.get_value(j_coord)
+            val = 0.5 * (i_orb.get_value(i_coord)[:,None] * j_orb.get_grad(j_coord) -
+                    i_orb.get_grad(i_coord) * j_orb.get_value(j_coord)[:,None])
             return val
+
+    def _do_overlap(self, ii, jj, coord):
+        """Calculate the current density operator between two orbitals ii and jj at a
+        given coordinate"""
+
+        i_orb = self._orb[self._orbind[ii]]
+        j_orb = self._orb[self._orbind[jj]]
+        i_coord = coord - self._orb_r[ii,:]
+        j_coord = coord - self._orb_r[jj,:]
+        #NOTE: implemented for real wavefunctions
+        if ((i_coord > i_orb.get_cutoff()).any() or
+                (j_coord > j_orb.get_cutoff()).any() or
+                (i_coord < -i_orb.get_cutoff()).any() or
+                (j_coord < -j_orb.get_cutoff()).any()):
+            return np.zeros(3)
+        else:
+            val = (np.conj(i_orb.get_value(i_coord)[:,None]) * j_orb.get_value(j_coord)[:,None])
+            return val
+
 
 
     def do_j(self):
         """Calculate current density"""
 
 
-        #UGLY UNEFFICIENT: ONLY FOR TESTING
+        #UGLY INEFFICIENT: ONLY FOR TESTING
         
         #Cycle on all coordinates
         for ii, xx in enumerate(self._grid.get_grid()[0]):
@@ -116,6 +135,8 @@ class CurrentDensity:
         #ii,jj,kk and then make a dictionary, cycle on the items and on
         #subblocks
         #local_cutoff = 12.0
+
+        meshgrid = self._grid.get_meshgrid()
         for ii_nnz in range(self._weight.nnz):
             if np.mod(ii_nnz, 50) == 0:
                 print('nzval', ii_nnz, ' of ', self._weight.nnz)
@@ -126,42 +147,54 @@ class CurrentDensity:
                 continue
             i_storb = self._orb[self._orbind[i_orb]]
             j_storb = self._orb[self._orbind[j_orb]]
-            local_cutoff = i_storb.get_cutoff() + j_storb.get_cutoff()
+            local_cutoff = (i_storb.get_cutoff() + j_storb.get_cutoff()) / 2.0
             i_coord = self._orb_r[i_orb,:]
             j_coord = self._orb_r[j_orb,:]
-            if ((abs(i_coord - j_coord) > local_cutoff).any()
-                    or (abs(i_coord - j_coord) < 1e-2).all() ):
+
+            #TEMPORARY: I WANT TO PLAY WITH SOME CONDITION ON DISTANCE
+            # REMEMBER THAT DISTANCES ARE IN AU HERE
+            #distance = np.linalg.norm(i_coord - j_coord)
+            #if distance > 1.0:
+            #    continue
+
+            if ((abs(i_coord - j_coord) > local_cutoff).any()):
+#                    or (abs(i_coord - j_coord) < 1e-2).all() ):
                 continue
-            i_min_coord = i_coord - local_cutoff#i_storb.get_cutoff()
-            j_min_coord = j_coord - local_cutoff#j_storb.get_cutoff()
-            i_max_coord = i_coord + local_cutoff#i_storb.get_cutoff()
-            j_max_coord = j_coord + local_cutoff#j_storb.get_cutoff() 
-            cpl_min_coord = np.array([max(i_min_coord[0], j_min_coord[0]),
-                max(i_min_coord[1], j_min_coord[1]),  
-                max(i_min_coord[2], j_min_coord[2])])
-            cpl_max_coord = np.array([min(i_max_coord[0], j_max_coord[0]),
-                min(i_max_coord[1], j_max_coord[1]),  
-                min(i_max_coord[2], j_max_coord[2])])
-            ind_min, foo = self._grid.get_grid_coord(cpl_min_coord)
-            if ind_min is None:
-                ind_min = np.zeros(3, dtype=int)
-            ind_max, foo = self._grid.get_grid_coord(cpl_max_coord)
-            if ind_max is None:
-                ind_max = self._grid.get_npoints() - 1
+            i_min_coord = i_coord - i_storb.get_cutoff()
+            j_min_coord = j_coord - j_storb.get_cutoff()
+            i_max_coord = i_coord + i_storb.get_cutoff()
+            j_max_coord = j_coord + j_storb.get_cutoff()
+            cpl_min_coord = np.maximum(i_min_coord, j_min_coord)
+            cpl_max_coord = np.minimum(i_max_coord, j_max_coord)
+            ind_min = self._grid.get_grid_coord(cpl_min_coord)[0] + 1
+            #if ind_min is None:
+            #    ind_min = np.zeros(3, dtype=int)
+            ind_max = self._grid.get_grid_coord(cpl_max_coord)[0] - 1
+            #if ind_max is None:
+            #    ind_max = self._grid.get_npoints() - 1
+
+            n_points = (ind_max[0]-ind_min[0])*(ind_max[1]-ind_min[1])*(ind_max[2]-ind_min[2])
+            coords = np.zeros(shape=(n_points,3))
+            count = 0
             for ii, xx in enumerate(
-                    self._grid.get_grid()[0][ind_min[0]:ind_max[0]+1]):
+                    self._grid.get_grid()[0][ind_min[0]:ind_max[0]]):
                 for jj, yy in enumerate(
-                        self._grid.get_grid()[1][ind_min[1]:ind_max[1]+1]):
+                        self._grid.get_grid()[1][ind_min[1]:ind_max[1]]):
                     for kk, zz in enumerate(
-                            self._grid.get_grid()[2][ind_min[2]:ind_max[2]+1]):
-                        
-                        coord = np.array([xx, yy, zz])
-                        #NOTE: units conversion in mA/nm^2
-                        #Assuming to get only the current operator from the density matrix
-                        conversion = 0.9839e2
-                        tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coord) * conversion
-                        self._j_vec[ii + ind_min[0], jj + ind_min[1], kk +
-                                ind_min[2], :] += tmp_j_vec
+                            self._grid.get_grid()[2][ind_min[2]:ind_max[2]]):
+                        coords[count, :] = [xx, yy, zz]
+                        count += 1
+
+            #NOTE: units conversion in mA/nm^2
+            #Assuming to get only the current operator from the density matrix
+            conversion = 0.23653e4
+            tmp_j_vec = weight * self._do_currdensop(i_orb, j_orb, coords) * conversion
+            self._j_vec[ind_min[0]:ind_max[0],
+                        ind_min[1]:ind_max[1],
+                        ind_min[2]:ind_max[2],:] += np.reshape(tmp_j_vec,
+                                        ( ind_max[0]-ind_min[0],
+                                          ind_max[1]-ind_min[1],
+                                          ind_max[2]-ind_min[2], 3))
 
         for ii, xx in enumerate(self._grid.get_grid()[0]):
             for jj, yy in enumerate(self._grid.get_grid()[1]):
@@ -172,6 +205,109 @@ class CurrentDensity:
         np.savez('currents', self._j_vec, self._j_mag)
 
         return
+
+    def do_j_general(self):
+        """
+        Calculate current density with '3 center' contributions:
+        J(r) = Sum_ijk G_ij <j|J|k> S_ik
+
+        Note: this form is probably wrong. There should not be a contribution
+        from a third orbital (see Lake)
+
+        """
+        pass
+        #FIND SOMETHING SMART HERE
+        #For any nonzero density matrix couple define maximum and minimum
+        #ii,jj,kk and then make a dictionary, cycle on the items and on
+        #subblocks
+        #local_cutoff = 12.0
+
+        #meshgrid = self._grid.get_meshgrid()
+        #for ii_nnz in range(self._weight.nnz):
+        #    if np.mod(ii_nnz, 50) == 0:
+        #        print('nzval', ii_nnz, ' of ', self._weight.nnz)
+        #    weight = self._weight.data[ii_nnz]
+        #    i_orb = self._weight.row[ii_nnz]
+        #    j_orb = self._weight.col[ii_nnz]
+        #    #if i_orb == j_orb:
+        #    #    continue
+        #    i_storb = self._orb[self._orbind[i_orb]]
+        #    j_storb = self._orb[self._orbind[j_orb]]
+
+        #    # Look for k orbital for 3 center term
+        #    for k_orb, foo in enumerate(self._orb_r):
+        #        k_storb = self._orb[self._orbind[k_orb]]
+        #        cutoff_jk = (k_storb.get_cutoff() + j_storb.get_cutoff()) / 2.0
+        #        cutoff_ik = (i_storb.get_cutoff() + k_storb.get_cutoff()) / 2.0
+        #        i_coord = self._orb_r[i_orb,:]
+        #        j_coord = self._orb_r[j_orb,:]
+        #        k_coord = self._orb_r[k_orb,:]
+        #        if ((abs(i_coord - k_coord) > cutoff_ik).any()):
+        #            continue
+        #        if ((abs(j_coord - k_coord) > cutoff_jk).any()):
+        #            continue
+
+        #    #TEMPORARY: I WANT TO PLAY WITH SOME CONDITION ON DISTANCE
+        #    # REMEMBER THAT DISTANCES ARE IN AU HERE
+        #    #distance = np.linalg.norm(i_coord - j_coord)
+        #    #if distance > 1.0:
+        #    #    continue
+
+        #        #I only calculate non-zero contributions where the
+        #        #wavefunctions involved in current operator are overlapping
+        #        #It can be improved by adding the condition on S_ik
+        #        i_min_coord = i_coord - i_storb.get_cutoff()
+        #        j_min_coord = j_coord - j_storb.get_cutoff()
+        #        k_min_coord = k_coord - k_storb.get_cutoff()
+        #        i_max_coord = i_coord + i_storb.get_cutoff()
+        #        j_max_coord = j_coord + j_storb.get_cutoff()
+        #        k_max_coord = k_coord + k_storb.get_cutoff()
+        #        cpl_min_coord = np.maximum(np.maximum(k_min_coord, j_min_coord), i_min_coord)
+        #        cpl_max_coord = np.minimum(np.minimum(k_max_coord, j_max_coord), i_max_coord)
+        #        ind_min = self._grid.get_grid_coord(cpl_min_coord)[0] + 1
+        #        #if ind_min is None:
+        #        #    ind_min = np.zeros(3, dtype=int)
+        #        ind_max = self._grid.get_grid_coord(cpl_max_coord)[0] - 1
+        #        #if ind_max is None:
+        #        #    ind_max = self._grid.get_npoints() - 1
+
+        #        n_points = (ind_max[0]-ind_min[0])*(ind_max[1]-ind_min[1])*(ind_max[2]-ind_min[2])
+        #        coords = np.zeros(shape=(n_points,3))
+        #        count = 0
+        #        for ii, xx in enumerate(
+        #            self._grid.get_grid()[0][ind_min[0]:ind_max[0]]):
+        #            for jj, yy in enumerate(
+        #                self._grid.get_grid()[1][ind_min[1]:ind_max[1]]):
+        #                for kk, zz in enumerate(
+        #                    self._grid.get_grid()[2][ind_min[2]:ind_max[2]]):
+        #                    coords[count, :] = [xx, yy, zz]
+        #                    count += 1
+
+        #        #NOTE: units conversion in mA/nm^2
+        #        #Assuming to get only the current operator from the density matrix
+        #        conversion = 0.23653e4
+        #        tmp_j_vec = weight * self._do_currdensop(j_orb, k_orb, coords) * conversion
+        #        if k_orb == i_orb:
+        #            overlap = 1.0
+        #        else:
+        #            overlap = self._do_overlap(i_orb, k_orb, coords)
+        #        tmp_j_vec = np.multiply(tmp_j_vec, overlap)
+        #        self._j_vec[ind_min[0]:ind_max[0],
+        #        ind_min[1]:ind_max[1],
+        #        ind_min[2]:ind_max[2],:] += np.reshape(tmp_j_vec,
+        #                                           ( ind_max[0]-ind_min[0],
+        #                                             ind_max[1]-ind_min[1],
+        #                                             ind_max[2]-ind_min[2], 3))
+
+        #for ii, xx in enumerate(self._grid.get_grid()[0]):
+        #    for jj, yy in enumerate(self._grid.get_grid()[1]):
+        #        for kk, zz in enumerate(self._grid.get_grid()[2]):
+        #            self._j_mag[ii, jj, kk] = np.linalg.norm(self._j_vec[ii,
+        #                                                     jj, kk, :])
+        #print('Done')
+        #np.savez('currents', self._j_vec, self._j_mag)
+
+        #return
 
     def load(self, filename):
         npzfile = np.load(filename)
@@ -192,7 +328,6 @@ class CurrentDensity:
                     for jj, yy in enumerate(self._grid.get_grid()[1]):
                         j_axis[kk] = j_axis[kk] + self._j_vec[ii, jj, kk, 2] * conversion
          
-        print('j_axis', j_axis)
         with open(filename, 'w') as outfile:
             for val in j_axis:
                 outfile.write('{} \n'.format(val))

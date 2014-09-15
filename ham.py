@@ -15,19 +15,20 @@ def random_onsite(size, delta, seed=None):
     delta (float): disorder interval
     seed (hashable): random generator seed
     """
-    if type(size) != int or type(size) != numpy.int:
+    if type(size) != int or type(size) != np.int:
         if size.shape[0] != size.shape[1]:
             raise ValueError('size must be an integer or a square matrix')
         size = size.shape[0]
     np.random.seed(seed)
     disorder = np.zeros((size, size))
-    disorder_diag = np.rand(size) * 2.0 * delta - delta
-    disorder.fill_diagonal(disorder_diag)
+    disorder_diag = np.random.rand(size) * 2.0 * delta - delta
+    diag_ind = np.diag_indices(size)
+    disorder[diag_ind] = disorder_diag
 
     return disorder
 
 
-def random_hopping(mask, delta, seed=None, diag=False):
+def random_hopping(mask, delta, seed=None, diag=False, tol=0.0):
     """
     Return a matrix containing a random disorder in the interval -delta, +delta
     on the non-zero non-diagonal values of a mask matrix.
@@ -38,15 +39,16 @@ def random_hopping(mask, delta, seed=None, diag=False):
     int (int or matrix): matrix size (for square matrix)
     delta (float): disorder interval
     seed (hashable): random generator seed
+    tol (float): specify the tolerance to consider a value of mask matrix zero
     """
-    if size.mask[0] != size.mask[1]:
-        raise ValueError('size must be an integer or a square matrix')
-    size = size.shape[0]
+    if mask.shape[0] != mask.shape[1]:
+        raise ValueError('mask must be a square matrix')
+    size = mask.shape[0]
     np.random.seed(seed)
-    disorder = np.random(mask.shape) * 2.0 * delta - delta
+    disorder = np.random.random(mask.shape) * 2.0 * delta - delta
+    disorder[abs(mask)<=tol] = 0.0
     if not diag:
-        disorder.fill_diagonal(0.0)
-
+        np.fill_diagonal(disorder, 0.0)
     return disorder
 
 
@@ -59,7 +61,7 @@ def linear_ham(length, onsite, hopping):
         ham[i + 1, i] = hopping
         for i in range(n):
             ham[i, i] = onsite
-        return
+    return ham
 
 
 class LinearChainHam(solver.Solver):

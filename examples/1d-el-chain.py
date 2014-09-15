@@ -10,8 +10,8 @@ import pyta.lead
 import matplotlib.pyplot as plt
 
 #Set energy range
-en_points = 100
-energies, en_step = np.linspace(-5.0, 5.0, en_points, retstep = True)
+en_points = 2
+energies, en_step = np.linspace(-0.01, 0.01, en_points, retstep = True)
 #Lenght of chain
 n = 10
 

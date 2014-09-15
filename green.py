@@ -126,7 +126,8 @@ class Green(solver.Solver):
             assert(sigma.shape[0]==sigma.shape[1])
             size = sigma.shape[0]
             pos = lead.get('position')
-            mat[pos: pos+size, pos:pos+size] += sigma
+            mat[pos: pos+size, pos:pos+size] = \
+                mat[pos: pos+size, pos:pos+size] + sigma
         return
 
     def _resize_lead_matrix(self, lead, varname):
@@ -154,11 +155,11 @@ class Green(solver.Solver):
         else:
             lead1=self.leads[0]
             lead2=self.leads[1]
-        gamma1 = np.zeros((self.size, self.size))
+        gamma1 = np.zeros((self.size, self.size), dtype=complex)
         pos = lead1.get('position')
         size = lead1.get('size')
         gamma1[pos: pos+size, pos:pos+size]+=lead1.get('gamma')
-        gamma2 = np.zeros((self.size, self.size))
+        gamma2 = np.zeros((self.size, self.size), dtype=complex)
         pos = lead2.get('position')
         size = lead2.get('size')
         gamma2[pos: pos+size, pos:pos+size]+=lead2.get('gamma')
@@ -270,7 +271,7 @@ class ElGreen(Green):
         "Distribute energy in leads"
         for lead in self.leads:
             try:
-                lead.set_energy(energy)
+                lead.set('energy',energy)
             except AttributeError:
                 pass
         return
@@ -295,7 +296,7 @@ class ElGreen(Green):
         sigma = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
         self._add_leads(sigma, 'sigma_ret')
-        esh -= sigma
+        esh = esh - sigma
         self.green_ret = esh.I
 
         return self.green_ret
@@ -504,7 +505,7 @@ class SCCMixer():
                         # TODO: the mixer does not work, Glesser diverges in SCBA
                         print('local max',(np.absolute(local_a.get(var)).max()))
                         solver_a.set(var, solver_a.get(var)*w + (1.0-w)*local_a.get(var))
-            print('var ', var,' solver_a', solver_a.get(var), ' local ', local_a.get(var))
+            #print('var ', var,' solver_a', solver_a.get(var), ' local ', local_a.get(var))
 
             #Calculate difference between previous and current state
             if self.relative_tol:
@@ -531,10 +532,13 @@ class SCCMixer():
                     return out_stats[:n, :]
             else:
                 if np.all(diff < np.array(self.tol)):
-                    return out_stats[:n, :]
+                    if self.stats:
+                        return out_stats[:n, :]
+                    else:
+                        return
             if n == self.maxiter - 1:
                 raise RuntimeError('Maximum number of iterations reached in SCCMixer')
-                return out_stats[:n, :]
+                return
             local_a = copy.copy(solver_a)
 
         return out_stats
