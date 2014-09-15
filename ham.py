@@ -5,18 +5,100 @@ import solver
     matrix of simple systems."""
 
 
+def random_onsite(size, delta, seed=None):
+    """
+    Return a matrix containing a random disorder in the interval -delta, +delta
+
+    Parameters
+    ----------------
+    int (int or matrix): matrix size (for square matrix)
+    delta (float): disorder interval
+    seed (hashable): random generator seed
+    """
+    if type(size) != int or type(size) != numpy.int:
+        if size.shape[0] != size.shape[1]:
+            raise ValueError('size must be an integer or a square matrix')
+        size = size.shape[0]
+    np.random.seed(seed)
+    disorder = np.zeros((size, size))
+    disorder_diag = np.rand(size) * 2.0 * delta - delta
+    disorder.fill_diagonal(disorder_diag)
+
+    return disorder
+
+
+def random_hopping(mask, delta, seed=None, diag=False):
+    """
+    Return a matrix containing a random disorder in the interval -delta, +delta
+    on the non-zero non-diagonal values of a mask matrix.
+    If diag='True' is specified, also the diagonal is filled
+
+    Parameters
+    ----------------
+    int (int or matrix): matrix size (for square matrix)
+    delta (float): disorder interval
+    seed (hashable): random generator seed
+    """
+    if size.mask[0] != size.mask[1]:
+        raise ValueError('size must be an integer or a square matrix')
+    size = size.shape[0]
+    np.random.seed(seed)
+    disorder = np.random(mask.shape) * 2.0 * delta - delta
+    if not diag:
+        disorder.fill_diagonal(0.0)
+
+    return disorder
+
+
+def linear_ham(length, onsite, hopping):
+    """Returns a matrxi with a linear chain hamiltonian"""
+    n = length
+    ham = np.matrix(np.zeros((n, n)))
+    for i in range(n - 1):
+        ham[i, i + 1] = np.conj(hopping)
+        ham[i + 1, i] = hopping
+        for i in range(n):
+            ham[i, i] = onsite
+        return
+
+
 class LinearChainHam(solver.Solver):
-    """A class providing a simple linear chain nearest neighbor hamiltonian."""
+    """A solver class providing a simple linear chain nearest neighbor hamiltonian.
+    
+        Parameters 
+        ----------------------
+        length (int): chain length, as number of repetition of H
+        onsite (float): onsite energy. A NxN block can be specified
+        hopping (float): hopping matrix element. A NxN block can be
+                                            specified
+
+        Invar
+        -----------------------
+        delta_h (ndarray_like): add a shift to the Hamiltonian. The input
+                                quantity must be of same size as the
+                                hamiltonian.
+
+        Outvar
+        -----------------------
+        ham (matrix): Hamiltonian of the syste
+        over (matrix): Overlap matrix of the system
+
+    """
 
     def __init__(self,
                  #parameters
-                 length, onsite=0.0, hopping=1.0, overlap=0.0):
-        """Constructor arguments:
-        length (int): chain length
-        onsite (float or complex): onsite energy
-        hopping (float or complex): hopping matrix element
-        overlap (float): nearest neighbor overlap (if any).
-               """
+                 length, onsite=0.0, hopping=1.0, overlap=None):
+        """
+            Parameters
+            ------------------
+
+        length (int): chain length, as number of repetition of H
+        onsite (float): onsite energy. 
+        hopping (float): hopping matrix element.
+        overlap (float): Overlap in sub-diagonal and
+                                        super-diagonal elements
+        
+        """
 
         #Param
         self.length = length
@@ -27,6 +109,9 @@ class LinearChainHam(solver.Solver):
         #Outvar
         self.ham = None
         self.over = None
+
+        #Invar
+        self.delta_h = None
 
         #First hamiltonian and overlap calculation
         self._init_ham_over()
@@ -46,6 +131,12 @@ class LinearChainHam(solver.Solver):
             self.ham[i, i] = self.onsite
         return
 
+
+    def _do_ham(self):
+        """
+        Update the Hamiltonian when a shift is set
+        """
+        self.ham += self.delta_h
 
 
 
