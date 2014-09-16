@@ -355,6 +355,8 @@ class ElLead(PhysicalLead):
         #Param
         #==========================================================
         self.ham = ham
+        if ((ham - ham.H) > 1e-10 ).any():
+            raise ValueError('Error in Lead parameter. The Hamiltonian is not hermitian')
         self.ham_t = ham_t
         self.ham_ld = ham_ld
         self.over = over
@@ -628,7 +630,7 @@ class ElWideBand(PhysicalLead):
     def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self.energy
-        dos_mat = np.zeros((self.pl_size, self.pl_size))
+        dos_mat = np.zeros((self.pl_size, self.pl_size), dtype=np.complex128)
         np.fill_diagonal(dos_mat, self.dos)
         tau_ld = z * self.over_ld - self.ham_ld
         a_ld = -1j * np.pi * np.dot(tau_ld, self.dos)

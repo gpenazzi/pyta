@@ -28,10 +28,12 @@ def random_onsite(size, delta, seed=None):
     return disorder
 
 
-def random_hopping(mask, delta, seed=None, diag=False, tol=0.0):
+def random_hopping(mask, delta, seed=None, tol=0.0):
     """
     Return a matrix containing a random disorder in the interval -delta, +delta
     on the non-zero non-diagonal values of a mask matrix.
+    Disorder is added symmetrically, such that the Hamiltonian
+    is still hermitian.
     If diag='True' is specified, also the diagonal is filled
 
     Parameters
@@ -47,8 +49,8 @@ def random_hopping(mask, delta, seed=None, diag=False, tol=0.0):
     np.random.seed(seed)
     disorder = np.random.random(mask.shape) * 2.0 * delta - delta
     disorder[abs(mask)<=tol] = 0.0
-    if not diag:
-        np.fill_diagonal(disorder, 0.0)
+    lowdiag_disorder = np.tril(disorder)
+    disorder = lowdiag_disorder + lowdiag_disorder.T
     return disorder
 
 

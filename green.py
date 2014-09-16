@@ -77,6 +77,11 @@ class Green(solver.Solver):
             spectral = self.get('spectral')
             green_lr = self.get('green_lr')
             self.green_gr = green_lr - 1j*spectral
+            gamma = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
+            self._add_leads(gamma, 'gamma')
+            gr=self.get('green_ret')
+            ga=self.get('green_ret').H
+            sp2=gr*gamma*ga
         else:
             sigma_gr = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
             self._add_leads(sigma_gr, 'sigma_gr')
@@ -155,11 +160,11 @@ class Green(solver.Solver):
         else:
             lead1=self.leads[0]
             lead2=self.leads[1]
-        gamma1 = np.zeros((self.size, self.size), dtype=complex)
+        gamma1 = np.zeros((self.size, self.size), dtype=np.complex128)
         pos = lead1.get('position')
         size = lead1.get('size')
         gamma1[pos: pos+size, pos:pos+size]+=lead1.get('gamma')
-        gamma2 = np.zeros((self.size, self.size), dtype=complex)
+        gamma2 = np.zeros((self.size, self.size), dtype=np.complex128)
         pos = lead2.get('position')
         size = lead2.get('size')
         gamma2[pos: pos+size, pos:pos+size]+=lead2.get('gamma')
@@ -177,8 +182,8 @@ class Green(solver.Solver):
         ggr = self.get('green_gr')
         sgr = self._resize_lead_matrix(lead, 'sigma_gr')
         slr = self._resize_lead_matrix(lead, 'sigma_lr')
-        current = ((pyta.consts.e / pyta.consts.h_eVs) *
-                    np.trace(slr*ggr - sgr*glr))
+        const = 1.0#pyta.consts.e / pyta.consts.h_eVs)
+        current = const * np.trace(slr*ggr - sgr*glr)
         return current
 
 
@@ -240,6 +245,12 @@ class ElGreen(Green):
             assert(type(over) == np.matrixlib.defmatrix.matrix)
             self.over = over
         self.ham = ham
+
+        #Consistency check (yes, it happened to wrongly set a non hermitian hamiltonian...
+        #good luck spotting that without a check)
+        if ((ham - ham.H) > 1e-10 ).any():
+            raise ValueError('Error in Green parameter. The Hamiltonian is not hermitian')
+
         size = len(self.ham)
         if over is None:
             self.over = np.matrix(np.eye(size))
@@ -494,7 +505,7 @@ class SCCMixer():
 
         for n in range(self.maxiter):
             #Calculate Bn = f(An-1)
-            print('n',n)
+            #print('n',n)
             solver_b.set(self.a_in_b_name, local_a, **self.a_in_b_kwargs)
             solver_a.cleandep(self.b_in_a_name)
             if self.mixer is not None:
@@ -503,7 +514,7 @@ class SCCMixer():
                     assert(w <= 1.0 and w > 0.0)
                     for var in self.varname:
                         # TODO: the mixer does not work, Glesser diverges in SCBA
-                        print('local max',(np.absolute(local_a.get(var)).max()))
+                        # print('local max',(np.absolute(local_a.get(var)).max()))
                         solver_a.set(var, solver_a.get(var)*w + (1.0-w)*local_a.get(var))
             #print('var ', var,' solver_a', solver_a.get(var), ' local ', local_a.get(var))
 
