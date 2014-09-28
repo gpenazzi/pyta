@@ -540,7 +540,10 @@ class SCCMixer():
             #Verify exit condition
             if self.niter is not None:
                 if n == self.niter - 1:
-                    return out_stats[:n, :]
+                    if self.stats:
+                        return out_stats[:n, :]
+                    else:
+                        return 
             else:
                 if np.all(diff < np.array(self.tol)):
                     if self.stats:
