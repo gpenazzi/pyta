@@ -57,7 +57,7 @@ def random_hopping(mask, delta, seed=None, tol=0.0):
 def linear_ham(length, onsite, hopping):
     """Returns a matrxi with a linear chain hamiltonian"""
     n = length
-    ham = np.matrix(np.zeros((n, n)))
+    ham = np.asmatrix(np.zeros((n, n)))
     for i in range(n - 1):
         ham[i, i + 1] = np.conj(hopping)
         ham[i + 1, i] = hopping
@@ -124,8 +124,8 @@ class LinearChainHam(solver.Solver):
     def _init_ham_over(self):
         """Private: create the first hamiltonian and overlap"""
         n = self.length
-        self.ham = np.matrix(np.zeros((n, n)))
-        self.over = np.matrix(np.identity(n))
+        self.ham = np.asmatrix(np.zeros((n, n)))
+        self.over = np.asmatrix(np.identity(n))
         for i in range(n - 1):
             self.ham[i, i + 1] = np.conj(self.hopping)
             self.ham[i + 1, i] = self.hopping

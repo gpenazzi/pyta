@@ -162,7 +162,7 @@ class MRDephasing(Lead):
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
         green_ret = self.greensolver.get('green_ret')
-        tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
+        tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
         #Note: * is an elementwise operator for ndarray types
         np.fill_diagonal(tmp, np.multiply(green_ret.diagonal(), self.coupling))
         self.sigma_ret = tmp
@@ -171,7 +171,7 @@ class MRDephasing(Lead):
     def _do_sigma_gr(self):
         """Calculate the retarded self energy"""
         green_gr = self.greensolver.get('green_gr')
-        tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
+        tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(green_gr.diagonal(), self.coupling))
         self.sigma_gr = tmp
         return
@@ -179,7 +179,7 @@ class MRDephasing(Lead):
     def _do_sigma_lr(self):
         """Calculate the retarded self energy"""
         green_lr = self.greensolver.get('green_lr')
-        tmp = np.matrix(np.eye(self.size), dtype=np.complex128)
+        tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(green_lr.diagonal(), self.coupling))
         self.sigma_lr = tmp
         return
@@ -372,11 +372,11 @@ class ElLead(PhysicalLead):
         #Set defaults
         self.pl_size = self.ham.shape[0]
         if over is None:
-            self.over = np.matrix(np.eye(self.pl_size))
+            self.over = np.asmatrix(np.eye(self.pl_size))
         if over_t is None:
-            self.over_t = np.matrix(np.zeros(self.ham_t.shape))
+            self.over_t = np.asmatrix(np.zeros(self.ham_t.shape))
         if over_ld is None:
-            self.over_ld = np.matrix(np.zeros(self.ham_ld.shape))
+            self.over_ld = np.asmatrix(np.zeros(self.ham_ld.shape))
         #===========================================================
 
         #Invar
@@ -490,7 +490,7 @@ class PhLead(PhysicalLead):
         assert (self.spring.shape[0] == self.spring.shape[1])
         pl_size = self.spring.shape[0]
         if not mass:
-            self.mass = np.matrix(np.eye(pl_size))
+            self.mass = np.asmatrix(np.eye(pl_size))
         #======================================
 
         #Invar
@@ -601,7 +601,7 @@ class ElWideBand(PhysicalLead):
         #Set defaults
         self.pl_size = self.ham_ld.shape[0]
         if over_ld is None:
-            self.over_ld = np.matrix(np.zeros(self.ham_ld.shape))
+            self.over_ld = np.asmatrix(np.zeros(self.ham_ld.shape))
         #===========================================================
 
         #Invar

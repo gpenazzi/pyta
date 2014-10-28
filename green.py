@@ -77,20 +77,15 @@ class Green(solver.Solver):
             spectral = self.get('spectral')
             green_lr = self.get('green_lr')
             self.green_gr = green_lr - 1j*spectral
-            gamma = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
-            self._add_leads(gamma, 'gamma')
-            gr=self.get('green_ret')
-            ga=self.get('green_ret').H
-            sp2=gr*gamma*ga
         else:
-            sigma_gr = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
+            sigma_gr = np.asmatrix(np.zeros((self.size, self.size), dtype=np.complex128))
             self._add_leads(sigma_gr, 'sigma_gr')
             self.green_gr = self.get_green_ret() * sigma_gr * self.get_green_ret().H
         return
 
     def _do_green_lr(self):
         """Calculate equilibrium Green's function"""
-        sigma_lr = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
+        sigma_lr = np.asmatrix(np.zeros((self.size, self.size), dtype=np.complex128))
         self._add_leads(sigma_lr, 'sigma_lr')
         self.green_lr = self.get_green_ret() * sigma_lr * self.get_green_ret().H
         return
@@ -253,7 +248,7 @@ class ElGreen(Green):
 
         size = len(self.ham)
         if over is None:
-            self.over = np.matrix(np.eye(size))
+            self.over = np.asmatrix(np.eye(size))
 
         #Invar
         #=================================
@@ -304,7 +299,7 @@ class ElGreen(Green):
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
-        sigma = np.matrix(np.zeros((self.size, self.size), dtype=np.complex128))
+        sigma = np.asmatrix(np.zeros((self.size, self.size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
         self._add_leads(sigma, 'sigma_ret')
         esh = esh - sigma
@@ -354,7 +349,7 @@ class PhGreen(Green):
         self.spring = spring
         size = len(self.spring)
         if mass is None:
-            self.mass = np.matrix(np.eye(size))
+            self.mass = np.asmatrix(np.eye(size))
         #======================================
 
         #Invar
