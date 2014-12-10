@@ -31,7 +31,7 @@ class Solver(object):
         pass
 
 
-    def set(self, invarname, value, **kwargs):
+    def set(self, invarname, value):
         """
         Set an input variable invar specified by a string.
         If a _set_<name> function exists in the derived class, this
@@ -43,60 +43,17 @@ class Solver(object):
         function_name = 'set_' + invarname
         exist = getattr(self, function_name, None)
         if callable(exist):
-            exist(value, **kwargs)
+            exist(value)
             return
 
         # If not, we try to resolve it automagically
         # If the member is not an iterable, look for
         # a member with the given name
         exist = getattr(self, invarname)
-        # For non iterable the accepted keywords are:
-        # mode = 'replace' : replace the value
-        # mode = 'increment': add to the current value (for non iterables)
-        # mode = 'append': append to iterable
-        # mode = 'remove': remove from iterable
-        # Only 'mode' can be set
-        if len(kwargs) > 1 and 'mode' not in kwargs:
-            raise ValueError('Unknown additional arguments in default set. Only ''mode'' is accepted.')
         # Default implementation for non iterable
-        if not isinstance(exist, collections.Iterable):
-            if len(kwargs) == 0:
-                mode = 'replace'
-            else:
-                mode = kwargs['mode']
-            if mode == 'replace':
-                setattr(self, invarname,  value)
-            elif mode == 'increment':
-                setattr(self, invarname,  exist + value)
-            else:
-                raise ValueError('Unknown mode', mode, 'in automatic set')
-        if isinstance(exist, collections.Iterable):
-            if len(kwargs) == 0:
-                mode = 'replace'
-            else:
-                mode = kwargs['mode']
-            if mode == 'replace':
-                setattr(self, invarname,  value)
-            elif mode == 'append':
-                exist.append(value)
-            elif mode == 'remove':
-                exist.remove(value)
-            else:
-                raise ValueError('Unknown mode', mode, 'in automatic set')
+        setattr(self, invarname,  value)
         # Call cleandep, if any
         self.cleandep(invarname)
-        return
-
-
-
-
-
-        if len(kwargs) == 0:
-            exist = value
-            return
-        else:
-            raise RuntimeError('default set method does not accept optional arguments')
-
         return
 
 

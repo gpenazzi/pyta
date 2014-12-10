@@ -66,7 +66,7 @@ right.set('mu', 1.0)
 
 #Declare virtual lead
 dephase_parameter = np.array(np.zeros(n))
-dephase_parameter[0:n] = 1e-10
+dephase_parameter[0:n] = 1e-3
 dephasing = pyta.lead.MRDephasing()
 dephasing.set('coupling', dephase_parameter)
 ######################
@@ -87,7 +87,7 @@ for ind, ener in enumerate(en):
     #SCBA loop
     green_obj.set('leads', [left, right])
     scba = pyta.green.SCBA(green_obj, dephasing, tol = scba_tol, maxiter=scba_steps, task='both')
-    scba.do()
+    scba.solve()
     curr[ind] = green_obj.get('meirwingreen', lead=left)
     total_current += curr[ind] * step
 

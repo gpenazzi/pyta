@@ -86,7 +86,7 @@ for ind, ener in enumerate(en):
     #SCBA loop
     green_obj.set('leads', [left, right])
     scba = pyta.green.SCBA(green_obj, dephasing, tol = scba_tol, maxiter=scba_steps, task='both')
-    scba.do()
+    scba.solve()
 
     #Occupation is determined by comparing the Non equilibrium Green's function
     #and the spectral density
