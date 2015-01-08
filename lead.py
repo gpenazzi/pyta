@@ -88,7 +88,9 @@ class MRDephasing(Lead):
 
     def __init__(self,
                 #Invar
-                deph=None):
+                green_ret=None,
+                green_lr=None,
+                coupling=None):
         """Only the name and dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
         to get the self energies using set_eqgreen() and set_neqgreen()
@@ -102,8 +104,10 @@ class MRDephasing(Lead):
         invar:
         1) deph
         dephasing parameter (numpy.array, float)
-        2) greensolver
-        A Green solver which provides all the needed Green's function
+        2) green_ret
+        Reference retarded Green's function
+        3) green_lr
+        Reference lesser Green's function
 
         internal:
         2) size
@@ -117,14 +121,16 @@ class MRDephasing(Lead):
 
         #Invar
         #================================
-        self.coupling = None
-        self.greensolver = None
+        self.coupling = coupling
+        self.green_ret = green_ret
+        self.green_lr = green_lr
         #================================
 
         #Internal
-        self.size = None
+        if self.coupling is not None:
+            self.size = len(self.coupling)
 
-        #Base constructors 
+        #Base constructors
         position = 0
         super(MRDephasing, self).__init__(position)
 
@@ -146,41 +152,34 @@ class MRDephasing(Lead):
         self.sigma_lr = None
         return
 
-    def set_greensolver(self, green):
-        """Set a non-equilibrium Green's function (Greater)"""
-        self.greensolver = green
-        self.cleandep_greensolver()
-        self.size = green.get('size')
+    def cleandep_green_ret(self):
+        self.sigma_ret = None
         return
 
-    def cleandep_greensolver(self):
-        self.sigma_gr = None
+    def cleandep_green_lr(self):
         self.sigma_lr = None
-        self.sigma_ret = None
+        self.sigma_gr = None
         return
 
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
-        green_ret = self.greensolver.get('green_ret')
         tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
         #Note: * is an elementwise operator for ndarray types
-        np.fill_diagonal(tmp, np.multiply(green_ret.diagonal(), self.coupling))
+        np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(), self.coupling))
         self.sigma_ret = tmp
         return
 
     def _do_sigma_gr(self):
         """Calculate the retarded self energy"""
-        green_gr = self.greensolver.get('green_gr')
-        tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
-        np.fill_diagonal(tmp, np.multiply(green_gr.diagonal(), self.coupling))
-        self.sigma_gr = tmp
+        gamma = self.get('gamma')
+        sigma_lr = self.get('sigma_lr')
+        self.sigma_gr = sigma_lr - 1j * gamma
         return
 
     def _do_sigma_lr(self):
         """Calculate the retarded self energy"""
-        green_lr = self.greensolver.get('green_lr')
         tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
-        np.fill_diagonal(tmp, np.multiply(green_lr.diagonal(), self.coupling))
+        np.fill_diagonal(tmp, np.multiply(self.green_lr.diagonal(), self.coupling))
         self.sigma_lr = tmp
         return
 
@@ -270,57 +269,15 @@ class MCDephasing(Lead):
         self.sigma_lr = green_lr * self.coupling
 
 
-class PhysicalLead(Lead):
-    """ Abstract Class
-        A class derived from Lead for the description of physical contacts"""
-
-    def __init__(self,
-                 #Param
-                 position, delta=defaults.delta):
-        """A PhysicalLead object describe a semi-infinite periodic lead
-        within the Open Boundary
-        Steady State picture. 
-        Derived class for Fermion and Bosons are implemented, this base class
-        should not be explicitely instanced.
-        position (int): index of interacting device layer
-        mu (float): chemical potential
-        We always mean by convention the
-        coupling device-contact, i.e. Hdc"""
-
-        #Param
-        #================================
-
-        #Invar
-        #================================
-        self.delta = delta
-        self.temperature = 0.0
-        #================================
-
-        #Base constructors
-        super(PhysicalLead, self).__init__(position)
-
-
-    def set_temperature(self, temperature):
-        """Set temperature, for non equilibrium self energy"""
-        self.temperature = temperature
-        self.cleandep_temperature()
-        return
-
-
-    def cleandep_temperature(self):
-        self.sigma_gr = None
-        self.sigma_lr = None
-        return
-
-
-class ElLead(PhysicalLead):
+class ElLead(Lead):
     """A class derived from Lead for the description of electron bath, in
     the case of Fermion Green's functions"""
 
     def __init__(self,
                  #Param
                  position, ham, ham_t, ham_ld, over=None,
-                 over_t=None, over_ld=None, delta=defaults.delta):
+                 over_t=None, over_ld=None, temperature=0.0,
+                 delta=defaults.delta):
         """
 
         parameters:
@@ -383,11 +340,24 @@ class ElLead(PhysicalLead):
         #============================
         self.energy = None
         self.mu = 0.0
+        self.delta = delta
+        self.temperature = temperature
         #============================
 
         #Base constructor
         self.size = self.ham_ld.shape[0]
-        super(ElLead, self).__init__(position, delta=delta)
+        super(ElLead, self).__init__(position)
+
+    def set_temperature(self, temperature):
+        """Set temperature, for non equilibrium self energy"""
+        self.temperature = temperature
+        self.cleandep_temperature()
+        return
+
+    def cleandep_temperature(self):
+        self.sigma_gr = None
+        self.sigma_lr = None
+        return
 
     def set_energy(self, energy):
         """Set energy point"""
@@ -464,13 +434,13 @@ class ElLead(PhysicalLead):
 
 
 # noinspection PyArgumentList
-class PhLead(PhysicalLead):
+class PhLead(Lead):
     """A class derived from Lead for the description of phonon lead"""
 
     def __init__(self,
                  #Param
                  position, spring, spring_t, spring_ld, mass=None,
-                 delta=defaults.delta):
+                 temperature=0.0, delta=defaults.delta):
 
         #Param
         #======================================
@@ -496,11 +466,24 @@ class PhLead(PhysicalLead):
         #Invar
         #===================================
         self.frequency = None
+        self.delta = delta
+        self.temperature = temperature
         #===================================
 
         #Base constructor
         self.size = self.spring_ld.shape[0]
-        super(PhLead, self).__init__(position, delta=delta)
+        super(PhLead, self).__init__(position)
+
+    def set_temperature(self, temperature):
+        """Set temperature, for non equilibrium self energy"""
+        self.temperature = temperature
+        self.cleandep_temperature()
+        return
+
+    def cleandep_temperature(self):
+        self.sigma_gr = None
+        self.sigma_lr = None
+        return
 
     def set_frequency(self, frequency):
         """Set frequency point"""
@@ -569,7 +552,7 @@ class PhLead(PhysicalLead):
         return
 
 
-class ElWideBand(PhysicalLead):
+class ElWideBand(Lead):
     """A class derived from Lead for the description of physical contacts, in
     the case of Fermion Green's functions"""
 
@@ -578,7 +561,7 @@ class ElWideBand(PhysicalLead):
                  position, dos, ham_ld, over_ld=None,
                  delta=defaults.delta,
                  #Invar
-                 mu=None):
+                 temperature=0.0, mu=None):
         """
         The following quantities must be specified:
 
@@ -608,11 +591,24 @@ class ElWideBand(PhysicalLead):
         #============================
         self.energy = None
         self.mu = mu
+        self.delta = delta
+        self.temperature = temperature
         #============================
 
         #Base constructor
         self.size = self.ham_ld.shape[0]
-        super(ElWideBand, self).__init__(position, delta=delta)
+        super(ElWideBand, self).__init__(position)
+
+    def set_temperature(self, temperature):
+        """Set temperature, for non equilibrium self energy"""
+        self.temperature = temperature
+        self.cleandep_temperature()
+        return
+
+    def cleandep_temperature(self):
+        self.sigma_gr = None
+        self.sigma_lr = None
+        return
 
     def set_energy(self, energy):
         """Set energy point"""

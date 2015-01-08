@@ -66,18 +66,16 @@ right.set('mu', 1.0)
 
 #Declare virtual lead
 dephase_parameter = np.array(np.zeros(n))
-dephase_parameter[0:n] = 1e-3
+dephase_parameter[0:n] = 1e-20
 dephasing = pyta.lead.MRDephasing()
 dephasing.set('coupling', dephase_parameter)
 ######################
 
 # Declare Green's solver
 green_obj = pyta.green.ElGreen(ham)
-green_obj.set('leads', [left, right])
+green_obj.set('leads', [left, right, dephasing])
 ####################################
 
-#Assign green to virtual lead
-dephasing.set('greensolver', green_obj)
 curr = np.zeros(en_points)
 total_current = 0.0
 
@@ -85,9 +83,10 @@ total_current = 0.0
 for ind, ener in enumerate(en):
     green_obj.set('energy', ener)
     #SCBA loop
-    green_obj.set('leads', [left, right])
-    scba = pyta.green.SCBA(green_obj, dephasing, tol = scba_tol, maxiter=scba_steps, task='both')
-    scba.solve()
+    green_obj.scba(dephasing,mode='equilibrium',niter=1)
+    green_obj.scba(dephasing,mode='keldysh',niter=1)
+    #scba = pyta.green.SCBA(green_obj, dephasing, tol = scba_tol, maxiter=scba_steps, task='both')
+    #scba.solve()
     curr[ind] = green_obj.get('meirwingreen', lead=left)
     total_current += curr[ind] * step
 

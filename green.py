@@ -1,5 +1,6 @@
 import numpy as np
-import pyta.defaults as defaults
+from pyta import defaults
+from pyta import mathutils
 import solver
 import pyta.lead
 import pyta.consts
@@ -54,16 +55,28 @@ class Green(solver.Solver):
         super(Green, self).__init__()
 
     def get_green_ret(self):
+        """
+        Returns:
+            np.matrix: Retarded Green's function
+        """
         if self.green_ret is None:
             self._do_green_ret()
         return self.green_ret
 
     def get_green_lr(self):
+        """
+        Returns:
+        np.matrix: Lesser Green's function
+        """
         if self.green_lr is None:
             self._do_green_lr()
         return self.green_lr
 
     def get_green_gr(self):
+        """
+        Returns:
+            np.matrix: Greater Green's function
+        """
         if self.green_gr is None:
             self._do_green_gr()
         return self.green_gr
@@ -79,16 +92,20 @@ class Green(solver.Solver):
             green_lr = self.get('green_lr')
             self.green_gr = green_lr - 1j * spectral
         else:
-            sigma_gr = np.asmatrix(np.zeros((self.size, self.size), dtype=np.complex128))
-            self._add_leads(sigma_gr, 'sigma_gr')
-            self.green_gr = self.get_green_ret() * sigma_gr * self.get_green_ret().H
+            sigma_gr = np.asmatrix(
+                np.zeros((self.size, self.size), dtype=np.complex128))
+            self._add_leads(sigma_gr, "sigma_gr")
+            self.green_gr = (self.get_green_ret * sigma_gr *
+                             self.get_green_ret.H)
         return
 
     def _do_green_lr(self):
         """Calculate equilibrium Green's function"""
-        sigma_lr = np.asmatrix(np.zeros((self.size, self.size), dtype=np.complex128))
-        self._add_leads(sigma_lr, 'sigma_lr')
-        self.green_lr = self.get_green_ret() * sigma_lr * self.get_green_ret().H
+        sigma_lr = np.asmatrix(
+            np.zeros((self.size, self.size), dtype=np.complex128))
+        self._add_leads(sigma_lr, "sigma_lr")
+        green_ret = self.get_green_ret()
+        self.green_lr = green_ret * sigma_lr * green_ret.H
         return
 
     def cleandep_leads(self):
@@ -148,14 +165,20 @@ class Green(solver.Solver):
         pos = lead2.get('position')
         size = lead2.get('size')
         gamma2[pos: pos + size, pos:pos + size] += lead2.get('gamma')
-        green_ret = self.get_green_ret()
+        green_ret = self.get_green_ret
         trans = (np.trace(gamma1 * green_ret * gamma2 * green_ret.H))
         return trans
 
     def get_meirwingreen(self, lead=None):
         """
         Calculate the total current in a specified lead
-        by applying the Meir-Wirgreen
+        by applying the Meir-Wirgreen formula
+
+        Args:
+            lead (Lead): reference lead where the current is evaluated
+                equation
+        Returns:
+            float: value of current in given energy point
         """
         assert (lead is not None)
         glr = self.get('green_lr')
@@ -168,7 +191,14 @@ class Green(solver.Solver):
 
     def get_dattacurrent(self, lead=None):
         """Calculate the current using the Datta version of Meir Wingreen:
-            I = Sigma_lesser * A - Gamma * G_lesser"""
+            I = Sigma_lesser * A - Gamma * G_lesser
+
+        Args:
+            lead (Lead): reference lead where the current is evaluated
+                equation
+        Returns:
+            float: value of current in given energy point
+        """
         assert (lead is not None)
         green_n = -1.0j * self.get('green_lr')
         sigma_n = -1.0j * self._resize_lead_matrix(lead, 'sigma_lr')
@@ -185,6 +215,43 @@ class Green(solver.Solver):
         diag2 = self.get_spectral()
         occupation = (np.imag(diag1 / diag2))
         return occupation
+
+    def scba(self, lead, mode='equilibrium', niter=None, maxiter=None,
+             tolerance=None, alpha=1.0):
+        """
+        Perform Born Approximation mixing with respect to self energy contained
+        in lead specified in input
+        """
+
+        if mode == 'equilibrium':
+            green_varname = 'green_ret'
+            sigma_varname = 'sigma_ret'
+        elif mode == 'keldysh':
+            green_varname = 'green_lr'
+            sigma_varname = 'sigma_lr'
+        else:
+            raise AttributeError('Unknown mode: must be equilibrium or keldysh')
+
+        #Initialize the virtual lead self-energy to zero
+        lead.set(green_varname, np.zeros((self.size, self.size)))
+
+        def func1(var1):
+            ## Note: var1 here is dummy because it is automatically retrievable
+            ## everytime a lead.get is invoked in func2
+            self.cleandep('leads')
+            return self.get(green_varname)
+
+        def func2(var2):
+            ## Here var2 in input must be the right green's function and the
+            ## return value is the corresponding sigma
+            lead.set(green_varname, var2)
+            return lead.get(sigma_varname)
+
+        ## G0 calculated here (self-energy initialized to zero)
+        var1_guess = self.get(green_varname)
+        mathutils.linear_mixer(func1, func2, var1_guess, niter=niter,
+                               tolerance=tolerance,
+                               alpha=alpha, maxiter=maxiter)
 
 
 class ElGreen(Green):
@@ -224,10 +291,11 @@ class ElGreen(Green):
             self.over = over
         self.ham = ham
 
-        #Consistency check (yes, it happened to wrongly set a non hermitian hamiltonian...
-        #good luck spotting that without a check)
+        #Consistency check (yes, it happened to wrongly set a non hermitian
+        # hamiltonian...good luck spotting that without a check)
         if ((ham - ham.H) > 1e-10 ).any():
-            raise ValueError('Error in Green parameter. The Hamiltonian is not hermitian')
+            raise ValueError(
+                'Error in Green parameter. The Hamiltonian is not hermitian')
 
         size = len(self.ham)
         if over is None:
@@ -281,7 +349,8 @@ class ElGreen(Green):
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
-        sigma = np.asmatrix(np.zeros((self.size, self.size), dtype=np.complex128))
+        sigma = np.asmatrix(
+            np.zeros((self.size, self.size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
         self._add_leads(sigma, 'sigma_ret')
         esh = esh - sigma
@@ -376,97 +445,97 @@ class PhGreen(Green):
         return self.green_ret
 
 
+## Deprecated code. Waiting for my decision to delete it
 
-class LinearMixerSCC():
-    """A class to link self-consistently two inter-dependent solvers.
-    The parameters are passed through constructor. When the constructor is
-    invoked, the solvers must be still already linked.
-
-    IMPORTANT: the solver A is the target one, it is necessary that the value
-    of varname_a is defined (to some initial guess) and is not None, otherwise
-    you will end up in an undefined recursion.
-
-    Example: solver A and B have interdependent quantities A.a and B.b
-    A.a(0) must have a finite value, then the mixer will compute
-
-    B.b(0) = f(A.a(0))
-    A.a(1) = (1-alpha)*A.a(0) + alpha*f(B.b(1))
-    B.b(1) = f(A.a(1))
-    ...
-
-    WITHOUT setting A.set('foo_B', B) and B.set('foo_') we call
-    >> SCCMixer = scc(A,B,varname='whatever',tol=1e-10,maxiter=1000)
-    >> scc.do()
-
-    After the cycle is finished, A and B contain the SCC solutions."""
-
-    def __init__(self, solver_a, varname_a,
-                 solver_b, varname_b,
-                 maxiter, tolerance,
-                 alpha=1.0, niter=None, errfunc=None):
-
-        """
-        Args
-            solver_a (Solver): main solver (convergence is checked on this)
-            varname_a: any variable from solver_a supporting product and sum
-            solver_b (Solver): second solver
-            varname_b: any variable from solver_b supporting product and sum
-            mixing_parameter (float): linear mixer weight. 1.0 corresponds to
-                no mixing with the old solution.
-            tolerance (float): exit tolerance condition
-            errfun: function used to evaluate the error. If not specified,
-                    err=max(abs(a(n+1)-a(n)))
-
-        Returns
-            LinearMixerSCC instance
-
-        """
-
-        self.solver_a = solver_a
-        self.solver_b = solver_b
-        self.varname_a = varname_a
-        self.varname_b = varname_b
-        self.tolerance = tolerance
-        self.maxiter = maxiter
-        self.niter = niter
-        self.alpha = alpha
-        self.errfunc = errfunc
-
-
-    def solve(self):
-        """
-        Solve the SCC problem with linear mixer
-        """
-        for n in range(self.maxiter):
-
-            error = self._do_single_iteration()
-            if error < self.tolerance or n==self.niter:
-                return
-
-
-    def _do_single_iteration(self):
-        """
-        Update the solvers from step n to step n+1
-        """
-        #Note: we need to keep the copy of the variable to mix and check
-        # convergence
-        var_a_n = np.copy(self.solver_a.get(self.varname_a))
-        ## Refresh solver B
-        self.solver_b.set(self.varname_b, None)
-        self.solver_b.get(self.varname_b)
-        ## Refresh A and mix solver A n+1
-        self.solver_a.set(self.varname_a, None)
-        var_a_new = self.solver_a.get(self.varname_a)
-        var_a_np1 = (1-self.alpha)*var_a_n + self.alpha*var_a_new
-        self.solver_a.set(self.varname_a, var_a_np1)
-        if self.errfunc is None:
-            error = np.max(np.abs(var_a_np1 - var_a_n))
-        else:
-            error
-
-        return error
-
-
+#class LinearMixerSCC():
+#    """A class to link self-consistently two inter-dependent solvers.
+#    The parameters are passed through constructor. When the constructor is
+#    invoked, the solvers must be still already linked.
+#
+#    IMPORTANT: the solver A is the target one, it is necessary that the value
+#    of varname_a is defined (to some initial guess) and is not None, otherwise
+#    you will end up in an undefined recursion.
+#
+#    Example: solver A and B have interdependent quantities A.a and B.b
+#    A.a(0) must have a finite value, then the mixer will compute
+#
+#    B.b(0) = f(A.a(0))
+#    A.a(1) = (1-alpha)*A.a(0) + alpha*f(B.b(1))
+#    B.b(1) = f(A.a(1))
+#    ...
+#
+#    WITHOUT setting A.set('foo_B', B) and B.set('foo_') we call
+#    >> SCCMixer = scc(A,B,varname='whatever',tol=1e-10,maxiter=1000)
+#    >> scc.do()
+#
+#    After the cycle is finished, A and B contain the SCC solutions."""
+#
+#    def __init__(self, solver_a, varname_a,
+#                 solver_b, varname_b,
+#                 maxiter, tolerance,
+#                 alpha=1.0, niter=None, errfunc=None):
+#
+#        """
+#        Args
+#            solver_a (Solver): main solver (convergence is checked on this)
+#            varname_a: any variable from solver_a supporting product and sum
+#            solver_b (Solver): second solver
+#            varname_b: any variable from solver_b supporting product and sum
+#            mixing_parameter (float): linear mixer weight. 1.0 corresponds to
+#                no mixing with the old solution.
+#            tolerance (float): exit tolerance condition
+#            errfun: function used to evaluate the error. If not specified,
+#                    err=max(abs(a(n+1)-a(n)))
+#
+#        Returns
+#            LinearMixerSCC instance
+#
+#        """
+#
+#        self.solver_a = solver_a
+#        self.solver_b = solver_b
+#        self.varname_a = varname_a
+#        self.varname_b = varname_b
+#        self.tolerance = tolerance
+#        self.maxiter = maxiter
+#        self.niter = niter
+#        self.alpha = alpha
+#        self.errfunc = errfunc
+#
+#
+#    def solve(self):
+#        """
+#        Solve the SCC problem with linear mixer
+#        """
+#        for n in range(self.maxiter):
+#
+#            error = self._do_single_iteration()
+#            if error < self.tolerance or n == self.niter:
+#                return
+#
+#
+#    def _do_single_iteration(self):
+#        """
+#        Update the solvers from step n to step n+1
+#        """
+#        #Note: we need to keep the copy of the variable to mix and check
+#        # convergence
+#        var_a_n = np.copy(self.solver_a.get(self.varname_a))
+#        ## Refresh solver B
+#        self.solver_b.set(self.varname_b, None)
+#        self.solver_b.get(self.varname_b)
+#        ## Refresh A and mix solver A n+1
+#        self.solver_a.set(self.varname_a, None)
+#        var_a_new = self.solver_a.get(self.varname_a)
+#        var_a_np1 = (1 - self.alpha) * var_a_n + self.alpha * var_a_new
+#        self.solver_a.set(self.varname_a, var_a_np1)
+#        if self.errfunc is None:
+#            error = np.max(np.abs(var_a_np1 - var_a_n))
+#        else:
+#            pass
+#
+#        return
+#
 
 #class SCCMixer():
 #    """A class to link self-consistently two inter-dependent solvers.
@@ -476,8 +545,8 @@ class LinearMixerSCC():
 #    in input (more quantities can be converging at once).
 #
 #    Example: an instance foo_A of a solver class A depends on a solver class B.
-#    The instance foo_B of the solver class B depends on A. The SCC is considered
-#    solved when A.whatever is converged.
+#    The instance foo_B of the solver class B depends on A. The SCC is
+#    considered solved when A.whatever is converged.
 #
 #    WITHOUT setting A.set('foo_B', B) and B.set('foo_') we call
 #    >> SCCMixer = scc(A,B,varname='whatever',tol=1e-10,maxiter=1000)
@@ -626,75 +695,74 @@ class LinearMixerSCC():
 #            local_a = copy.copy(solver_a)
 #
 #        return out_stats
-
-
-class SCBA():
-    """A class to solve Self Consistent Born Approximation Loop"""
-
-    def __init__(self,
-                 #Params
-                 greensolver, selfener, tol=defaults.scbatol, maxiter=1000,
-                 task='both', niter=None, mixer_parameter=1.0, stats=False):
-        """ greensolver and selfener are the solver 
-        to be plugged in the loop.
-        Task specify whether we loop on the equilibrium ('eq') or the Keldysh
-        ('keldysh') or both.
-        If the tolerance is a single scalar, the same tolerance is applied to both """
-
-        #Param
-        self.greensolver = greensolver
-        self.selfener = selfener
-        self.tol = tol
-        self.maxiter = maxiter
-        self.task = task
-        self.niter = niter
-        self.task = task
-        self.mixer_parameter = mixer_parameter
-        self.stats = stats
-
-
-    def solve(self):
-        """Link the green and self energy solvers and run the scba loop"""
-
-        eq = False
-        keldysh = False
-        if self.task == 'keldysh':
-            keldysh = True
-        elif self.task == 'eq':
-            eq = True
-        elif self.task == 'both':
-            keldysh = True
-            eq = True
-        else:
-            raise ValueError('Unknown task. Task must be keldysh, eq or both')
-
-        if eq:
-            leads = self.greensolver.get('leads')
-            if self.selfener in leads:
-                leads.remove(self.selfener)
-                self.greensolver.set('leads', leads)
-            green_ret = self.greensolver.get('green_ret')
-            self.greensolver.set('leads', leads+[self.selfener])
-            self.greensolver.set('green_ret', green_ret)
-            sccmixer = LinearMixerSCC(self.greensolver, 'green_ret',
-                            self.selfener, 'sigma_ret', self.maxiter,
-                            self.tol, niter=self.niter)
-            sccmixer.solve()
-
-
-        if keldysh:
-            leads = self.greensolver.get('leads')
-            if self.selfener in leads:
-                leads.remove(self.selfener)
-                self.greensolver.set('leads', leads)
-            green_gr = self.greensolver.get('green_lr')
-            leads = self.greensolver.get('leads')
-            self.greensolver.set('leads', leads+[self.selfener])
-            self.greensolver.set('green_lr', green_gr)
-            sccmixer = LinearMixerSCC(self.greensolver, 'green_lr',
-                            self.selfener, 'sigma_lr', self.maxiter,
-                            self.tol, alpha=self.mixer_parameter,
-                            niter=self.niter)
-            sccmixer.solve()
-
-        return
+#
+#
+#class SCBA():
+#    """A class to solve Self Consistent Born Approximation Loop"""
+#
+#    def __init__(self,
+#                 #Params
+#                 greensolver, selfener, tol=defaults.scbatol, maxiter=1000,
+#                 task='both', niter=None, mixer_parameter=1.0, stats=False):
+#        """ greensolver and selfener are the solver
+#        to be plugged in the loop.
+#        Task specify whether we loop on the equilibrium ('eq') or the Keldysh
+#        ('keldysh') or both.
+#        If the tolerance is a single scalar, the same tolerance is applied to both """
+#
+#        #Param
+#        self.greensolver = greensolver
+#        self.selfener = selfener
+#        self.tol = tol
+#        self.maxiter = maxiter
+#        self.task = task
+#        self.niter = niter
+#        self.task = task
+#        self.mixer_parameter = mixer_parameter
+#        self.stats = stats
+#
+#
+#    def solve(self):
+#        """Link the green and self energy solvers and run the scba loop"""
+#
+#        eq = False
+#        keldysh = False
+#        if self.task == 'keldysh':
+#            keldysh = True
+#        elif self.task == 'eq':
+#            eq = True
+#        elif self.task == 'both':
+#            keldysh = True
+#            eq = True
+#        else:
+#            raise ValueError('Unknown task. Task must be keldysh, eq or both')
+#
+#        if eq:
+#            leads = self.greensolver.get('leads')
+#            if self.selfener in leads:
+#                leads.remove(self.selfener)
+#                self.greensolver.set('leads', leads)
+#            green_ret = self.greensolver.get('green_ret')
+#            self.greensolver.set('leads', leads + [self.selfener])
+#            self.greensolver.set('green_ret', green_ret)
+#            sccmixer = LinearMixerSCC(self.greensolver, 'green_ret',
+#                                      self.selfener, 'sigma_ret', self.maxiter,
+#                                      self.tol, niter=self.niter)
+#            sccmixer.solve()
+#
+#        if keldysh:
+#            leads = self.greensolver.get('leads')
+#            if self.selfener in leads:
+#                leads.remove(self.selfener)
+#                self.greensolver.set('leads', leads)
+#            green_gr = self.greensolver.get('green_lr')
+#            leads = self.greensolver.get('leads')
+#            self.greensolver.set('leads', leads + [self.selfener])
+#            self.greensolver.set('green_lr', green_gr)
+#            sccmixer = LinearMixerSCC(self.greensolver, 'green_lr',
+#                                      self.selfener, 'sigma_lr', self.maxiter,
+#                                      self.tol, alpha=self.mixer_parameter,
+#                                      niter=self.niter)
+#            sccmixer.solve()
+#
+#        return

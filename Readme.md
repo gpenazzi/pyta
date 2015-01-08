@@ -16,22 +16,37 @@ You can find simple examples of usage in examples/
 Coding Philosophy
 =========
 Pyta relies heavily on object oriented programming, with a philosophy close to top-down dynamic programming.
-Whenever possible, a Class is defined to represent a Solver, where a Solver is just a generic object which accept some inputs and parameters and knows how to generate a set of given outputs. 
+The main goal of Pyta is helping the user to avoid the pain of refresh/rerun specific parts of calculation when some input variables is changed. To achieve this goal, a specific set of operations (some kind of 'model' if you like) are wrapped in classes, called Solvers. Every solver apply a JIT (Just In Time) execution phylosophy, i.e. a calculation is run when is needed to provide a specific output quantity. Some quantities are always calculated on the fly (typically post-processing quantities) while some other are stored unless the Solver input doesn''t make them obsolete. In this way it 'should' (see below) e ensured that the output is usually consistent with the input. 
+
+In order to achieve this result, we need to heavily rely on data encapsulation, i.e. everything goes through setters and getters. I do realize that this is not really pythonic, and to some extent properties may be used succesfully. However, I don''t like the idea of breaking consistency between getter which accept arguments (only implemented as method) and getters which don''t (which may be implemented as properties). However I admit that I am not still sure about this point, therefore this may change in the near future.
+
+Of course JIT execution may impact performance, therefore it should be clear that Pyta is born for algorithm prototyping, not as production code. 
+
 Every Solver is derived by the base class, which provides two fundamental acces point: set() and get()
-Intuitively, set() is used to pass input information, and get() to retrieve output.
-There is no explicit solve or run commands (here comes the dynamic part). The computation routines are hidden inside a solver class and are invoked anytime a get() operation finds that the variable to be retrieved has not been defined. Hence the top-down approach: variables are 'requested' at high level and computed only when needed. The final aim is to have slim scipts capable to do complicated stuff. Performances are of course affected, therefore it is better to make clear that Pyta is not designed to be fast, it is designed to be consistent and to simplify the coding of complicated workflows.  
+Intuitively, set() is used to pass input information, and get() to retrieve output. 
+The base class implements a general set/get method which works in most cases. set/get are driven by specifying the appropriate class member names. Example
+
+> stress=solver.get('stress')  #Return the quantity stress from the solver
+> solver.set('stiffness_constants', some_matrix)  #Set stiffness constants
+
+If you are not a fan of this JIT philosophy, you can still use the classes in a procedural way: the operations to be run are set in a quite strict way so that you could reimplement some steps. 
+
 
 
 Is the coding philosophy respected all over?
 =============================
-No, it is not. Some simple analytics or utilities are written in a plain non object-oriented style, it is not worth it to try to make everything more complicated than already is. 
-Also not everything can work flawlessly as I am not sure whether the design principles are general enough. This solver structure works fine for sequential workflows but is prone to ill-defined recursive cross dependencies. This tipically happens when two solver depend on each other, a simple case is an SCC loop. Therefore potentially recursive interdependencies must be carefully managed. An example is already implemented as a simple general SCC linear mixer, which is internally used to provide SCBA self-energy corrections. This kind of class doesn't have a defined output. Rather, it changes the state of the solvers.
+No, it is not. Of course the separation between a Solver and a normal function is arbitrary. Moreover, the design principle behind the JIT philosophy may be too strict and do not always work. An example is mixer or SCC loops, which needs to be explicitely invoked (for example, Born Approximation).
 
+Up to now I am allowing objects as input types, therefore it is clear that this may give two problems:
+
+1) We can end up in some recursive definition. Avoiding it is demanded to the developer. 
+2) The consistency between input and output can not be always ensured because the output of a solver should depend on the sate of an input object. However I think that managin this point is too cumbersome, therefore sometimes you may still need some manual refresh (again, an example in the current implementation is electron phonon self energy)
+ 
 
 Pyta is terrible, what else can I use?
 =============================
 
-Pyta is still a very personal toy and changes continuosly. If you are looking for some more mature tool already used to produce actual science, and still like to work with Python, you can give a look to these other packages (I am not affiliated in any way with the authors):
+Pyta is still a very personal toy and changes continuosly, and I am not sure whether I am working on it more for the sake of science or for the sake of experimenting software design. If you are interested in quantum transport and you are looking for some more mature tool already used to produce actual science, and still like to work with Python, you can give a look to these other packages (I am not affiliated in any way with the authors):
 
 http://kwant-project.org/authors
 
