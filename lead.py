@@ -79,7 +79,7 @@ class Lead(solver.Solver):
         and the spectral function. """
         diag1 = self.get('sigma_lr')
         diag2 = self.get('gamma')
-        occupation = (np.imag(diag1/ diag2))
+        occupation = (np.imag(diag1 / diag2))
         return occupation
 
 
@@ -87,10 +87,11 @@ class MRDephasing(Lead):
     """A virtual Lead modelling Momentum relaxing dephasing"""
 
     def __init__(self,
-                #Invar
-                green_ret=None,
-                green_lr=None,
-                coupling=None):
+                 #Invar
+                 green_ret=None,
+                 green_lr=None,
+                 coupling=None,
+                 rotation=None):
         """Only the name and dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
         to get the self energies using set_eqgreen() and set_neqgreen()
@@ -108,6 +109,9 @@ class MRDephasing(Lead):
         Reference retarded Green's function
         3) green_lr
         Reference lesser Green's function
+        4) over
+        We may need to apply a rotation Sigma*rotation for consistency with
+        rotations
 
         internal:
         2) size
@@ -124,11 +128,16 @@ class MRDephasing(Lead):
         self.coupling = coupling
         self.green_ret = green_ret
         self.green_lr = green_lr
+        self.rotation = rotation
         #================================
 
         #Internal
+        self._has_rotation = False
         if self.coupling is not None:
             self.size = len(self.coupling)
+            if self.rotation is None:
+                self.rotation = np.asmatrix(np.eye(self.size))
+                self._has_rotation = True
 
         #Base constructors
         position = 0
@@ -140,7 +149,15 @@ class MRDephasing(Lead):
         self.cleandep_coupling()
         self.coupling = coupling
         self.size = len(coupling)
+        self.rotation = np.asmatrix(np.eye(self.size))
         return
+
+    def set_rotation(self, rotation):
+        """
+         Set a transformation matrix (for non-orthogonal cases)
+        """
+        self.rotation = rotation
+        self._has_rotation = True
 
     def cleandep_coupling(self):
         """
@@ -163,10 +180,28 @@ class MRDephasing(Lead):
 
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
-        tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
-        #Note: * is an elementwise operator for ndarray types
-        np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(), self.coupling))
-        self.sigma_ret = tmp
+        if self._has_rotation:
+            ## This implementation was equivalent to the one above using
+            ## rotation = overlap^1/2. I could not find out under which assumption,
+            ## it doesn't seem to be mathematically equivalent. However this last one
+            ## can be easily demonstrated to be correct
+            tmp = (self.rotation * self.green_ret * self.rotation).diagonal()
+            tmp2 = np.multiply(tmp, self.coupling)
+            tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
+            np.fill_diagonal(tmp, tmp2)
+            self.sigma_ret = self.rotation * tmp * self.rotation
+
+            ## Approximate transformation (first order expansion of the above)
+            #tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
+            #np.fill_diagonal(tmp, np.multiply((self.green_ret * self.rotation).diagonal(),
+            #                                  self.coupling))
+            #self.sigma_ret = 0.5 * tmp * self.rotation + 0.5 * self.rotation * tmp
+
+        else:
+            tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
+            np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(),
+                                              self.coupling))
+            self.sigma_ret = tmp
         return
 
     def _do_sigma_gr(self):
@@ -179,7 +214,8 @@ class MRDephasing(Lead):
     def _do_sigma_lr(self):
         """Calculate the retarded self energy"""
         tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
-        np.fill_diagonal(tmp, np.multiply(self.green_lr.diagonal(), self.coupling))
+        np.fill_diagonal(tmp, np.multiply(self.green_lr.diagonal(),
+                                          self.coupling))
         self.sigma_lr = tmp
         return
 
@@ -246,7 +282,7 @@ class MCDephasing(Lead):
         self.cleandep_greensolver()
         self.size = green.get('size')
         return
-    
+
     def cleandep_greensolver(self):
         self.sigma_gr = None
         self.sigma_lr = None
@@ -312,8 +348,9 @@ class ElLead(Lead):
         #Param
         #==========================================================
         self.ham = ham
-        if ((ham - ham.H) > 1e-10 ).any():
-            raise ValueError('Error in Lead parameter. The Hamiltonian is not hermitian')
+        if ((ham - ham.H) > 1e-10).any():
+            raise ValueError(
+                'Error in Lead parameter. The Hamiltonian is not hermitian')
         self.ham_t = ham_t
         self.ham_ld = ham_ld
         self.over = over
@@ -423,14 +460,16 @@ class ElLead(Lead):
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_lr = (dist.fermi(self.energy, self.mu, temppot=self.temperature) *
-                         1j * self.get_gamma())
+        self.sigma_lr = (
+            dist.fermi(self.energy, self.mu, temppot=self.temperature) *
+            1j * self.get_gamma())
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_gr = ((dist.fermi(self.energy, self.mu, temppot=self.temperature)
-                          - 1.0) * 1j * self.get_gamma())
+        self.sigma_gr = (
+            (dist.fermi(self.energy, self.mu, temppot=self.temperature)
+             - 1.0) * 1j * self.get_gamma())
 
 
 # noinspection PyArgumentList
@@ -539,7 +578,7 @@ class PhLead(Lead):
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         energy = self.frequency * consts.hbar_eV_fs
-        self.sigma_lr = ((dist.bose(energy, 0.0, temppot=self.temperature)) *
+        self.sigma_lr = ((dist.bose(energy, temppot=self.temperature)) *
                          (-1j) * self.get_gamma())
         return
 
@@ -636,13 +675,103 @@ class ElWideBand(Lead):
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_lr = (dist.fermi(self.energy, self.mu, temppot=self.temperature) *
-                         1j * self.get_gamma())
+        self.sigma_lr = (
+            dist.fermi(self.energy, self.mu, temppot=self.temperature) *
+            1j * self.get_gamma())
         return
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_gr = ((dist.fermi(self.energy, self.mu, temppot=self.temperature)
-                          - 1.0) * 1j * self.get_gamma())
+        self.sigma_gr = (
+            (dist.fermi(self.energy, self.mu, temppot=self.temperature)
+             - 1.0) * 1j * self.get_gamma())
+        return
+
+
+class ElWideBandGamma(Lead):
+    """A completely phenomenological virtual lead with coupling given by a
+    single parameter Gamma and purely imaginary self-energies"""
+
+    def __init__(self,
+                 #Param
+                 position, size, coupling,
+                 #Invar
+                 temperature=0.0, mu=None):
+        """
+        The following quantities must be specified:
+
+        position (int): index of interacting device layer (lower index)
+        size (int): size of matrix. The model is diagonal
+        mu (float): chemical potential
+
+        We always mean by convention the
+        coupling device-contact, i.e. Hcd
+        For the contact we specify coupling between first and second layer, i.e.
+        H10 (same for the overlap, if any)"""
+
+        #Param
+        #==========================================================
+        self.coupling = coupling
+
+        #Set defaults
+        self.pl_size = size
+        #===========================================================
+
+        #Invar
+        #============================
+        self.energy = None
+        self.mu = mu
+        self.temperature = temperature
+        #============================
+
+        #Base constructor
+        self.size = size
+        super(ElWideBandGamma, self).__init__(position)
+
+    def set_temperature(self, temperature):
+        """Set temperature, for non equilibrium self energy"""
+        self.temperature = temperature
+        self.cleandep_temperature()
+        return
+
+    def cleandep_temperature(self):
+        self.sigma_gr = None
+        self.sigma_lr = None
+        return
+
+    def set_energy(self, energy):
+        """Set energy point"""
+        if energy != self.energy:
+            self.energy = energy
+            self.cleandep_energy()
+        return
+
+    def cleandep_energy(self):
+        self.sigma_ret = None
+        self.sigma_lr = None
+        self.sigma_gr = None
+        return
+
+    def _do_sigma_ret(self):
+        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        gamma_mat = np.zeros((self.pl_size, self.pl_size), dtype=np.complex128)
+        np.fill_diagonal(gamma_mat, self.coupling)
+        self.sigma_ret = 1j * gamma_mat
+        return
+
+    def _do_sigma_lr(self):
+        """Calculate the Sigma lesser"""
+        assert (not self.mu is None)
+        self.sigma_lr = (
+            dist.fermi(self.energy, self.mu, temppot=self.temperature) *
+            1j * self.get_gamma())
+        return
+
+    def _do_sigma_gr(self):
+        """Calculate the Sigma lesser"""
+        assert (not self.mu is None)
+        self.sigma_gr = (
+            (dist.fermi(self.energy, self.mu, temppot=self.temperature)
+             - 1.0) * 1j * self.get_gamma())
         return

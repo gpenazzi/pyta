@@ -54,6 +54,11 @@ class Green(solver.Solver):
 
         super(Green, self).__init__()
 
+    def _reset(self):
+        self.green_ret = None
+        self.green_lr = None
+        self.green_gr = None
+
     def get_green_ret(self):
         """
         Returns:
@@ -109,10 +114,7 @@ class Green(solver.Solver):
         return
 
     def cleandep_leads(self):
-        self.green_ret = None
-        self.green_gr = None
-        self.green_lr = None
-
+        self._reset()
 
     def get_spectral(self):
         """Get spectral function A = j(G^{r} - G^{a})"""
@@ -260,7 +262,7 @@ class ElGreen(Green):
 
     def __init__(self,
                  #Parameters
-                 ham, over=None):
+                 ham, over=None, delta=0.0):
         """ElGreen is initialized by specifying an Hamiltonian as numpy.matrix.
         Optionally, overlap can be specified.
         If overlap is not specified, an orthogonal basis is assumed.
@@ -280,6 +282,8 @@ class ElGreen(Green):
             system hamiltonian, numpy.matrix
         2)  overlap (optional)
             overlap matrix, real numpy.matrix
+        3)  delta (optional)
+            if no leads are present, it is used for shifting poles
 
         """
 
@@ -293,7 +297,7 @@ class ElGreen(Green):
 
         #Consistency check (yes, it happened to wrongly set a non hermitian
         # hamiltonian...good luck spotting that without a check)
-        if ((ham - ham.H) > 1e-10 ).any():
+        if (np.abs(ham - ham.H) > 1e-7 ).any():
             raise ValueError(
                 'Error in Green parameter. The Hamiltonian is not hermitian')
 
@@ -301,6 +305,7 @@ class ElGreen(Green):
         if over is None:
             self.over = np.asmatrix(np.eye(size))
 
+        self.delta = delta
         #Invar
         #=================================
         self.energy = None
@@ -308,6 +313,7 @@ class ElGreen(Green):
 
         #Base constructor
         super(ElGreen, self).__init__(size)
+
 
     def set_energy(self, energy):
         """Set energy point"""
@@ -319,10 +325,10 @@ class ElGreen(Green):
         return
 
     def cleandep_energy(self):
-        self.green_ret = None
-        self.green_lr = None
-        self.green_gr = None
+        self._reset()
 
+    def cleandep_delta(self):
+        self._reset()
 
     def _spread_energy(self, energy):
         "Distribute energy in leads"
@@ -332,7 +338,6 @@ class ElGreen(Green):
             except AttributeError:
                 pass
         return
-
 
     def get_local_currents(self):
         """
@@ -346,14 +351,16 @@ class ElGreen(Green):
         print('lc', lc[1, 2], 'energy ', en, 'gl', green_lr[1, :])
         return lc
 
-
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
         sigma = np.asmatrix(
             np.zeros((self.size, self.size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
         self._add_leads(sigma, 'sigma_ret')
-        esh = esh - sigma
+        ## Note: I add an imaginary part, to avoid problem if I have no
+        ## leads. Anyway it is small respect to self energy. If you don't want
+        ## it, set delta to 0.0 in constructor
+        esh = esh - sigma + 1j*self.delta * self.over
         self.green_ret = esh.I
 
         return self.green_ret
@@ -365,7 +372,7 @@ class PhGreen(Green):
 
     def __init__(self,
                  #Param
-                 spring, mass=None):
+                 spring, mass=None, delta=0.0):
         """PhGreen is initialized by specifying a coupling spring constant
         matrix as numpy.matrix.
         Optionally, masses can be specified.
@@ -406,6 +413,7 @@ class PhGreen(Green):
         #Invar
         #=======================================
         self.frequency = None
+        self.delta = delta
         #=======================================
 
         #Base constructor
@@ -419,10 +427,10 @@ class PhGreen(Green):
             self._spread_frequency(frequency)
 
     def cleandep_frequency(self):
-        self.green_ret = None
-        self.green_lr = None
-        self.green_gr = None
-        return
+        self._reset()
+
+    def cleandep_delta(self):
+        self._reset()
 
     def _spread_frequency(self, frequency):
         "Distribute energy in leads"
@@ -440,6 +448,7 @@ class PhGreen(Green):
         """Calculate equilibrium Green's function"""
         esh = self.frequency * self.frequency * self.mass - self.spring
         self._add_lead_sigma(esh)
+        esh = esh + 1j*self.delta * self.over
         self.green_ret = esh.I
 
         return self.green_ret
