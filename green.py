@@ -1,7 +1,7 @@
 import numpy as np
 from pyta import defaults
 from pyta import mathutils
-import solver
+from pyta import solver
 import pyta.lead
 import pyta.consts
 import copy
@@ -93,8 +93,8 @@ class Green(solver.Solver):
         """Calculate equilibrium Green's function.
         If the lesser is available avoid direct calculation of sigma_gr."""
         if self.green_lr is not None:
-            spectral = self.get('spectral')
-            green_lr = self.get('green_lr')
+            spectral = self.get_spectral()
+            green_lr = self.get_green_lr()
             self.green_gr = green_lr - 1j * spectral
         else:
             sigma_gr = np.asmatrix(
@@ -113,8 +113,8 @@ class Green(solver.Solver):
         self.green_lr = green_ret * sigma_lr * green_ret.H
         return
 
-    def cleandep_leads(self):
-        self._reset()
+    def set_leads(self, leads):
+        self.leads = leads
 
     def get_spectral(self):
         """Get spectral function A = j(G^{r} - G^{a})"""
@@ -183,8 +183,8 @@ class Green(solver.Solver):
             float: value of current in given energy point
         """
         assert (lead is not None)
-        glr = self.get('green_lr')
-        ggr = self.get('green_gr')
+        glr = self.get_green_lr()
+        ggr = self.get_green_gr()
         sgr = self._resize_lead_matrix(lead, 'sigma_gr')
         slr = self._resize_lead_matrix(lead, 'sigma_lr')
         const = 1.0  #pyta.consts.e / pyta.consts.h_eVs)
@@ -202,10 +202,10 @@ class Green(solver.Solver):
             float: value of current in given energy point
         """
         assert (lead is not None)
-        green_n = -1.0j * self.get('green_lr')
+        green_n = -1.0j * self.get_green_lr()
         sigma_n = -1.0j * self._resize_lead_matrix(lead, 'sigma_lr')
         gamma = self._resize_lead_matrix(lead, 'gamma')
-        spectral = self.get('spectral')
+        spectral = self.get_spectral()
         current = ((pyta.consts.e / pyta.consts.h_eVs) *
                    np.trace(sigma_n * spectral - gamma * green_n))
         return current
@@ -240,7 +240,7 @@ class Green(solver.Solver):
         def func1(var1):
             ## Note: var1 here is dummy because it is automatically retrievable
             ## everytime a lead.get is invoked in func2
-            self.cleandep('leads')
+            self._reset()
             return self.get(green_varname)
 
         def func2(var2):
@@ -319,16 +319,10 @@ class ElGreen(Green):
         """Set energy point"""
         if energy != self.energy:
             self.energy = energy
-            self.cleandep_energy()
+            self._reset()
             #Update energy point in all leads where set_energy is defined
             self._spread_energy(energy)
         return
-
-    def cleandep_energy(self):
-        self._reset()
-
-    def cleandep_delta(self):
-        self._reset()
 
     def _spread_energy(self, energy):
         "Distribute energy in leads"
@@ -343,7 +337,7 @@ class ElGreen(Green):
         """
         Calculate the matrices of local currents for all orbitals in the system
         """
-        green_lr = self.get('green_lr')
+        green_lr = self.get_green_lr()
         ham = self.ham
         over = self.over
         en = self.energy
@@ -423,14 +417,8 @@ class PhGreen(Green):
         """Set energy point"""
         if frequency != self.frequency:
             self.frequency = frequency
-            self.cleandep_frequency()
+            self._reset()
             self._spread_frequency(frequency)
-
-    def cleandep_frequency(self):
-        self._reset()
-
-    def cleandep_delta(self):
-        self._reset()
 
     def _spread_frequency(self, frequency):
         "Distribute energy in leads"
@@ -442,7 +430,6 @@ class PhGreen(Green):
             else:
                 lead.set_frequency(frequency)
         return
-
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""

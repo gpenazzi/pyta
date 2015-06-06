@@ -52,8 +52,6 @@ class Solver(object):
         exist = getattr(self, invarname)
         # Default implementation for non iterable
         setattr(self, invarname,  value)
-        # Call cleandep, if any
-        self.cleandep(invarname)
         return
 
 
@@ -82,24 +80,4 @@ class Solver(object):
                 raise ValueError('invar does not correspond to any member')
         else:
             return exist
-
-
-    def cleandep(self, invarname):
-        """
-        Clean up dependencies relying on a given input variable.
-        If no cleandep action is specified in the derived class,
-        it doesn't do anything
-        """
-        function_name = 'cleandep_' + invarname
-        try:
-            exist = getattr(self, function_name)
-            exist()
-        except AttributeError:
-            pass
-        #if callable(exist):
-        #    exist()
-        #    return
-        #else:
-        #    errorstring = 'Could not find cleandep method for variable' + str(invarname)
-        #    raise ValueError(errorstring)
 

@@ -1,5 +1,5 @@
 import numpy as np
-import solver
+from pyta import solver
 import pyta.defaults as defaults
 import pyta.dist as dist
 import pyta.consts as consts
@@ -146,7 +146,9 @@ class MRDephasing(Lead):
     def set_coupling(self, coupling):
         """Set a new dephasing parameter"""
         assert (type(coupling) == np.ndarray)
-        self.cleandep_coupling()
+        self.sigma_ret = None
+        self.sigma_gr = None
+        self.sigma_lr = None
         self.coupling = coupling
         self.size = len(coupling)
         self.rotation = np.asmatrix(np.eye(self.size))
@@ -159,24 +161,11 @@ class MRDephasing(Lead):
         self.rotation = rotation
         self._has_rotation = True
 
-    def cleandep_coupling(self):
-        """
-        Clean up coupling dependencies
-        :return: none
-        """
-        self.sigma_ret = None
-        self.sigma_gr = None
-        self.sigma_lr = None
-        return
+    def set_green_ret(self, green_ret):
+        self.green_ret = green_ret
 
-    def cleandep_green_ret(self):
-        self.sigma_ret = None
-        return
-
-    def cleandep_green_lr(self):
-        self.sigma_lr = None
-        self.sigma_gr = None
-        return
+    def set_green_lr(self, green_lr):
+        self.green_lr = green_lr
 
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
@@ -266,27 +255,19 @@ class MCDephasing(Lead):
         """Set a new dephasing parameter"""
         assert (type(coupling) == np.ndarray)
         assert (coupling.size == self.size)
-        self.cleandep_coupling()
-        self.coupling = coupling
-        return
-
-    def cleandep_coupling(self):
         self._sigma = None
         self._sigma_gr = None
         self._sigma_lr = None
+        self.coupling = coupling
         return
 
     def set_greensolver(self, green):
         """Set a non-equilibrium Green's function (Greater)"""
         self.greensolver = green
-        self.cleandep_greensolver()
-        self.size = green.get('size')
-        return
-
-    def cleandep_greensolver(self):
         self.sigma_gr = None
         self.sigma_lr = None
         self.sigma_ret = None
+        self.size = green.get('size')
         return
 
     def _do_sigma_ret(self):
@@ -388,10 +369,6 @@ class ElLead(Lead):
     def set_temperature(self, temperature):
         """Set temperature, for non equilibrium self energy"""
         self.temperature = temperature
-        self.cleandep_temperature()
-        return
-
-    def cleandep_temperature(self):
         self.sigma_gr = None
         self.sigma_lr = None
         return
@@ -400,22 +377,14 @@ class ElLead(Lead):
         """Set energy point"""
         if energy != self.energy:
             self.energy = energy
-            self.cleandep_energy()
-        return
-
-    def cleandep_energy(self):
-        self.sigma_ret = None
-        self.sigma_lr = None
-        self.sigma_gr = None
+            self.sigma_ret = None
+            self.sigma_lr = None
+            self.sigma_gr = None
         return
 
     def set_mu(self, mu):
         """Set a chemical potential, for nonequilibrium self energy"""
         self.mu = mu
-        self.cleandep_mu()
-        return
-
-    def cleandep_mu(self):
         self.sigma_gr = None
         self.sigma_lr = None
         return
@@ -516,10 +485,6 @@ class PhLead(Lead):
     def set_temperature(self, temperature):
         """Set temperature, for non equilibrium self energy"""
         self.temperature = temperature
-        self.cleandep_temperature()
-        return
-
-    def cleandep_temperature(self):
         self.sigma_gr = None
         self.sigma_lr = None
         return
@@ -528,13 +493,9 @@ class PhLead(Lead):
         """Set frequency point"""
         if frequency != self.frequency:
             self.frequency = frequency
-            self.cleandep_frequency()
-        return
-
-    def cleandep_frequency(self):
-        self.sigma_ret = None
-        self.sigma_lr = None
-        self.sigma_gr = None
+            self.sigma_ret = None
+            self.sigma_lr = None
+            self.sigma_gr = None
         return
 
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
@@ -641,10 +602,6 @@ class ElWideBand(Lead):
     def set_temperature(self, temperature):
         """Set temperature, for non equilibrium self energy"""
         self.temperature = temperature
-        self.cleandep_temperature()
-        return
-
-    def cleandep_temperature(self):
         self.sigma_gr = None
         self.sigma_lr = None
         return
@@ -653,13 +610,9 @@ class ElWideBand(Lead):
         """Set energy point"""
         if energy != self.energy:
             self.energy = energy
-            self.cleandep_energy()
-        return
-
-    def cleandep_energy(self):
-        self.sigma_ret = None
-        self.sigma_lr = None
-        self.sigma_gr = None
+            self.sigma_ret = None
+            self.sigma_lr = None
+            self.sigma_gr = None
         return
 
     def _do_sigma_ret(self):
@@ -732,10 +685,6 @@ class ElWideBandGamma(Lead):
     def set_temperature(self, temperature):
         """Set temperature, for non equilibrium self energy"""
         self.temperature = temperature
-        self.cleandep_temperature()
-        return
-
-    def cleandep_temperature(self):
         self.sigma_gr = None
         self.sigma_lr = None
         return
@@ -744,13 +693,9 @@ class ElWideBandGamma(Lead):
         """Set energy point"""
         if energy != self.energy:
             self.energy = energy
-            self.cleandep_energy()
-        return
-
-    def cleandep_energy(self):
-        self.sigma_ret = None
-        self.sigma_lr = None
-        self.sigma_gr = None
+            self.sigma_ret = None
+            self.sigma_lr = None
+            self.sigma_gr = None
         return
 
     def _do_sigma_ret(self):
