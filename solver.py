@@ -81,3 +81,5 @@ class Solver(object):
         else:
             return exist
 
+    def reset(self):
+        raise NotImplementedError()

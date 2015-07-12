@@ -82,6 +82,11 @@ class Lead(solver.Solver):
         occupation = (np.imag(diag1 / diag2))
         return occupation
 
+    def reset(self):
+        """
+        Set all the output variables to undefined state
+        """
+
 
 class MRDephasing(Lead):
     """A virtual Lead modelling Momentum relaxing dephasing"""
@@ -267,7 +272,7 @@ class MCDephasing(Lead):
         self.sigma_gr = None
         self.sigma_lr = None
         self.sigma_ret = None
-        self.size = green.get('size')
+        self.size = green.size
         return
 
     def _do_sigma_ret(self):

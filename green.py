@@ -50,11 +50,13 @@ class Green(solver.Solver):
         self.green_ret = None
         self.green_gr = None
         self.green_lr = None
-        self.transmission = None
 
         super(Green, self).__init__()
 
-    def _reset(self):
+    def reset(self):
+        """
+        Set all output variables to undefined state
+        """
         self.green_ret = None
         self.green_lr = None
         self.green_gr = None
@@ -129,7 +131,7 @@ class Green(solver.Solver):
             sigma = lead.get(varname)
             assert (sigma.shape[0] == sigma.shape[1])
             size = sigma.shape[0]
-            pos = lead.get('position')
+            pos = lead.position
             mat[pos: pos + size, pos:pos + size] = \
                 mat[pos: pos + size, pos:pos + size] + sigma
         return
@@ -142,7 +144,7 @@ class Green(solver.Solver):
         vartype = np.result_type(leadmat)
         mat = np.zeros((self.size, self.size), dtype=vartype)
         leadsize = leadmat.shape[0]
-        pos = lead.get('position')
+        pos = lead.position
         mat[pos: pos + leadsize, pos:pos + leadsize] = leadmat
         return mat
 
@@ -160,12 +162,12 @@ class Green(solver.Solver):
             lead1 = self.leads[0]
             lead2 = self.leads[1]
         gamma1 = np.zeros((self.size, self.size), dtype=np.complex128)
-        pos = lead1.get('position')
-        size = lead1.get('size')
+        pos = lead1.position
+        size = lead1.size
         gamma1[pos: pos + size, pos:pos + size] += lead1.get('gamma')
         gamma2 = np.zeros((self.size, self.size), dtype=np.complex128)
-        pos = lead2.get('position')
-        size = lead2.get('size')
+        pos = lead2.position
+        size = lead2.size
         gamma2[pos: pos + size, pos:pos + size] += lead2.get('gamma')
         green_ret = self.get_green_ret
         trans = (np.trace(gamma1 * green_ret * gamma2 * green_ret.H))
@@ -240,7 +242,7 @@ class Green(solver.Solver):
         def func1(var1):
             ## Note: var1 here is dummy because it is automatically retrievable
             ## everytime a lead.get is invoked in func2
-            self._reset()
+            self.reset()
             return self.get(green_varname)
 
         def func2(var2):
@@ -319,7 +321,7 @@ class ElGreen(Green):
         """Set energy point"""
         if energy != self.energy:
             self.energy = energy
-            self._reset()
+            self.reset()
             #Update energy point in all leads where set_energy is defined
             self._spread_energy(energy)
         return
@@ -417,7 +419,7 @@ class PhGreen(Green):
         """Set energy point"""
         if frequency != self.frequency:
             self.frequency = frequency
-            self._reset()
+            self.reset()
             self._spread_frequency(frequency)
 
     def _spread_frequency(self, frequency):
