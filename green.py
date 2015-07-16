@@ -169,7 +169,7 @@ class Green(solver.Solver):
         pos = lead2.position
         size = lead2.size
         gamma2[pos: pos + size, pos:pos + size] += lead2.get('gamma')
-        green_ret = self.get_green_ret
+        green_ret = self.get_green_ret()
         trans = (np.trace(gamma1 * green_ret * gamma2 * green_ret.H))
         return trans
 

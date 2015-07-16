@@ -48,7 +48,6 @@ class Lead(solver.Solver):
         """
 
         #Invar
-        self.coupling = None
 
         #Param
         #=====================================
@@ -167,9 +166,11 @@ class MRDephasing(Lead):
         self._has_rotation = True
 
     def set_green_ret(self, green_ret):
+        self.sigma_ret = None
         self.green_ret = green_ret
 
     def set_green_lr(self, green_lr):
+        self.sigma_lr = None
         self.green_lr = green_lr
 
     def _do_sigma_ret(self):
@@ -705,9 +706,10 @@ class ElWideBandGamma(Lead):
 
     def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
-        gamma_mat = np.zeros((self.pl_size, self.pl_size), dtype=np.complex128)
+        gamma_mat = np.matrix(np.zeros((self.pl_size, self.pl_size),
+                                       dtype=np.complex128))
         np.fill_diagonal(gamma_mat, self.coupling)
-        self.sigma_ret = 1j * gamma_mat
+        self.sigma_ret = 1j * gamma_mat / 2.
         return
 
     def _do_sigma_lr(self):
