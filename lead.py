@@ -279,17 +279,17 @@ class MCDephasing(Lead):
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
         green_ret = self.greensolver.get('green_ret')
-        self.sigma_ret = green_ret * self.coupling
+        self.sigma_ret = np.dot(green_ret, self.coupling)
 
     def _do_sigma_gr(self):
         """Calculate the greater self energy"""
         green_gr = self.greensolver.get('green_gr')
-        self.sigma_gr = green_gr * self.coupling
+        self.sigma_gr = np.dot(green_gr, self.coupling)
 
     def _do_sigma_lr(self):
         """Calculate the greater self energy"""
         green_lr = self.greensolver.get('green_lr')
-        self.sigma_lr = green_lr * self.coupling
+        self.sigma_lr = np.dot(green_lr, self.coupling)
 
 
 class ElLead(Lead):
@@ -406,10 +406,10 @@ class ElLead(Lead):
 
         z = self.energy + self.delta * 1j
         #TODO: Verify this!!
-        d_00 = z * self.over.H - self.ham.H
+        d_00 = z * self.over.conj().T - self.ham.conj().T
         d_11 = d_00.copy()
         d_10 = z * self.over_t - self.ham_t
-        d_01 = z * self.over_t.H - self.ham_t.H
+        d_01 = z * self.over_t.conj().T - self.ham_t.conj().T
         delta = tol + 1
         while delta > tol:
             a = np.linalg.solve(d_11, d_01)
@@ -520,7 +520,7 @@ class PhLead(Lead):
         d_00 = z * self.mass - self.spring
         d_11 = d_00.copy()
         d_10 = - self.spring_t
-        d_01 = - self.spring_t.H
+        d_01 = - self.spring_t.conj().T
         delta = tol + 1
         while delta > tol:
             a = np.linalg.solve(d_11, d_01)
@@ -538,7 +538,7 @@ class PhLead(Lead):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         tau_ld = self.spring_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
-        tau_dl = self.spring_ld.H
+        tau_dl = self.spring_ld.conj().T
         self.sigma_ret = np.dot(tau_dl, a_ld)
         return
 
@@ -590,7 +590,7 @@ class ElWideBand(Lead):
         #Set defaults
         self.pl_size = self.ham_ld.shape[0]
         if over_ld is None:
-            self.over_ld = np.asmatrix(np.zeros(self.ham_ld.shape))
+            self.over_ld = np.zeros(self.ham_ld.shape)
         #===========================================================
 
         #Invar

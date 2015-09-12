@@ -102,8 +102,8 @@ class Green(solver.Solver):
             sigma_gr = np.asmatrix(
                 np.zeros((self.size, self.size), dtype=np.complex128))
             self._add_leads(sigma_gr, "sigma_gr")
-            self.green_gr = (self.get_green_ret * sigma_gr *
-                             self.get_green_ret.H)
+            gr = self.get_green_ret()
+            self.green_gr = np.dot(np.dot(gr, sigma_gr),gr.conj().T)
         return
 
     def _do_green_lr(self):
@@ -112,7 +112,7 @@ class Green(solver.Solver):
             np.zeros((self.size, self.size), dtype=np.complex128))
         self._add_leads(sigma_lr, "sigma_lr")
         green_ret = self.get_green_ret()
-        self.green_lr = green_ret * sigma_lr * green_ret.H
+        self.green_lr = np.dot(np.dot(green_ret, sigma_lr), green_ret.conj().T)
         return
 
     def set_leads(self, leads):
@@ -121,7 +121,7 @@ class Green(solver.Solver):
     def get_spectral(self):
         """Get spectral function A = j(G^{r} - G^{a})"""
         green_ret = self.get_green_ret()
-        spectral = 1j * (green_ret - green_ret.H)
+        spectral = 1j * (green_ret - green_ret.conj().T)
         return spectral
 
     def _add_leads(self, mat, varname):
@@ -170,7 +170,8 @@ class Green(solver.Solver):
         size = lead2.size
         gamma2[pos: pos + size, pos:pos + size] += lead2.get('gamma')
         green_ret = self.get_green_ret()
-        trans = (np.trace(gamma1 * green_ret * gamma2 * green_ret.H))
+        trans = (np.trace(np.dot(np.dot(np.dot(gamma1, green_ret)
+                                        , gamma2),green_ret.conj().T)))
         return trans
 
     def get_meirwingreen(self, lead=None):
@@ -190,7 +191,7 @@ class Green(solver.Solver):
         sgr = self._resize_lead_matrix(lead, 'sigma_gr')
         slr = self._resize_lead_matrix(lead, 'sigma_lr')
         const = 1.0  #pyta.consts.e / pyta.consts.h_eVs)
-        current = const * np.trace(slr * ggr - sgr * glr)
+        current = const * np.trace(np.dot(slr, ggr) - np.dot(sgr, glr))
         return current
 
     def get_dattacurrent(self, lead=None):
@@ -209,7 +210,7 @@ class Green(solver.Solver):
         gamma = self._resize_lead_matrix(lead, 'gamma')
         spectral = self.get_spectral()
         current = ((pyta.consts.e / pyta.consts.h_eVs) *
-                   np.trace(sigma_n * spectral - gamma * green_n))
+                   np.trace(np.dot(sigma_n, spectral) - np.dot(gamma , green_n)))
         return current
 
     def get_occupation(self):
@@ -299,7 +300,7 @@ class ElGreen(Green):
 
         #Consistency check (yes, it happened to wrongly set a non hermitian
         # hamiltonian...good luck spotting that without a check)
-        if (np.abs(ham - ham.H) > 1e-7 ).any():
+        if (np.abs(ham - ham.conj().T) > 1e-7 ).any():
             raise ValueError(
                 'Error in Green parameter. The Hamiltonian is not hermitian')
 
@@ -442,325 +443,3 @@ class PhGreen(Green):
 
         return self.green_ret
 
-
-## Deprecated code. Waiting for my decision to delete it
-
-#class LinearMixerSCC():
-#    """A class to link self-consistently two inter-dependent solvers.
-#    The parameters are passed through constructor. When the constructor is
-#    invoked, the solvers must be still already linked.
-#
-#    IMPORTANT: the solver A is the target one, it is necessary that the value
-#    of varname_a is defined (to some initial guess) and is not None, otherwise
-#    you will end up in an undefined recursion.
-#
-#    Example: solver A and B have interdependent quantities A.a and B.b
-#    A.a(0) must have a finite value, then the mixer will compute
-#
-#    B.b(0) = f(A.a(0))
-#    A.a(1) = (1-alpha)*A.a(0) + alpha*f(B.b(1))
-#    B.b(1) = f(A.a(1))
-#    ...
-#
-#    WITHOUT setting A.set('foo_B', B) and B.set('foo_') we call
-#    >> SCCMixer = scc(A,B,varname='whatever',tol=1e-10,maxiter=1000)
-#    >> scc.do()
-#
-#    After the cycle is finished, A and B contain the SCC solutions."""
-#
-#    def __init__(self, solver_a, varname_a,
-#                 solver_b, varname_b,
-#                 maxiter, tolerance,
-#                 alpha=1.0, niter=None, errfunc=None):
-#
-#        """
-#        Args
-#            solver_a (Solver): main solver (convergence is checked on this)
-#            varname_a: any variable from solver_a supporting product and sum
-#            solver_b (Solver): second solver
-#            varname_b: any variable from solver_b supporting product and sum
-#            mixing_parameter (float): linear mixer weight. 1.0 corresponds to
-#                no mixing with the old solution.
-#            tolerance (float): exit tolerance condition
-#            errfun: function used to evaluate the error. If not specified,
-#                    err=max(abs(a(n+1)-a(n)))
-#
-#        Returns
-#            LinearMixerSCC instance
-#
-#        """
-#
-#        self.solver_a = solver_a
-#        self.solver_b = solver_b
-#        self.varname_a = varname_a
-#        self.varname_b = varname_b
-#        self.tolerance = tolerance
-#        self.maxiter = maxiter
-#        self.niter = niter
-#        self.alpha = alpha
-#        self.errfunc = errfunc
-#
-#
-#    def solve(self):
-#        """
-#        Solve the SCC problem with linear mixer
-#        """
-#        for n in range(self.maxiter):
-#
-#            error = self._do_single_iteration()
-#            if error < self.tolerance or n == self.niter:
-#                return
-#
-#
-#    def _do_single_iteration(self):
-#        """
-#        Update the solvers from step n to step n+1
-#        """
-#        #Note: we need to keep the copy of the variable to mix and check
-#        # convergence
-#        var_a_n = np.copy(self.solver_a.get(self.varname_a))
-#        ## Refresh solver B
-#        self.solver_b.set(self.varname_b, None)
-#        self.solver_b.get(self.varname_b)
-#        ## Refresh A and mix solver A n+1
-#        self.solver_a.set(self.varname_a, None)
-#        var_a_new = self.solver_a.get(self.varname_a)
-#        var_a_np1 = (1 - self.alpha) * var_a_n + self.alpha * var_a_new
-#        self.solver_a.set(self.varname_a, var_a_np1)
-#        if self.errfunc is None:
-#            error = np.max(np.abs(var_a_np1 - var_a_n))
-#        else:
-#            pass
-#
-#        return
-#
-
-#class SCCMixer():
-#    """A class to link self-consistently two inter-dependent solvers.
-#    The parameters are passed through constructor. When the constructor is
-#    invoked, the solvers must be still independent. Internally, a set method
-#    is invoked. Self-consistency is then checked on the quantities specified
-#    in input (more quantities can be converging at once).
-#
-#    Example: an instance foo_A of a solver class A depends on a solver class B.
-#    The instance foo_B of the solver class B depends on A. The SCC is
-#    considered solved when A.whatever is converged.
-#
-#    WITHOUT setting A.set('foo_B', B) and B.set('foo_') we call
-#    >> SCCMixer = scc(A,B,varname='whatever',tol=1e-10,maxiter=1000)
-#    >> scc.do()
-#
-#    After the cycle is finished, A and B contain the SCC solutions."""
-#
-#    def __init__(self, solver_a, solver_b, varname,
-#                 b_in_a_name, a_in_b_name, tol,
-#                 b_in_a_kwargs={}, a_in_b_kwargs={},
-#                 maxiter=1000,
-#                 niter=None,
-#                 mixer=None,
-#                 relative_tol=True,
-#                 stats=False):
-#        """
-#        solver_a, solver_b : instances of solver class to be linked
-#        b_in_a_name, b_in_a_kwargs : variable names and optional set arguments
-#                                    to be used to clean dependencies of
-#                                    instance b in solver a and set instance
-#                                    b in solver a
-#        a_in_b_name, a_in_b_kwargs : variable names and optional set arguments
-#                                    to be used to set instance a in solver b
-#        varname :   string or list of strings with variables to be verified
-#                    for SCC convergence
-#        tol : numerical tolerance
-#        maxiter : maximum number of iterations
-#        niter : if specified, exit anyway after niter iterations.
-#                In this case ignore tolerance
-#        mixer: None -> no mixer, A has always the recalculated value
-#               {'type': 'linear', 'weight': 0.5} linear mixer A1 = weight*A1 + (1-weight)*A0
-#        relative_tol : if True, the relative tolerance is considered
-#        stats: if Yes, produce some output statistics
-#        """
-#
-#        #Param
-#        self.solver_a = solver_a
-#        self.solver_b = solver_b
-#        #varname is always stored as list
-#        if not (type(varname) == str or type(varname) == list):
-#            raise ValueError('varname must be a string or a list of strings')
-#        if type(varname) == list:
-#            for var in varname:
-#                if not type(var) == str:
-#                    raise ValueError('varname must be a list of strings')
-#            self.varname = varname
-#        if type(varname) == str:
-#            self.varname = [varname]
-#        self.a_in_b_name = a_in_b_name
-#        self.b_in_a_name = b_in_a_name
-#        self.a_in_b_kwargs = a_in_b_kwargs
-#        self.b_in_a_kwargs = b_in_a_kwargs
-#        #Tolerance is a list of double with the size of varname, or a single double
-#        if not (type(tol) == float or type(tol) == list or type(tol) == np.ndarray):
-#            raise ValueError('tol must be a string or a list of strings')
-#        if type(tol) == list or type(tol) == np.ndarray:
-#            for val in tol:
-#                if not type(val) == float:
-#                    raise ValueError('tol must be a list of float or a numpy.array')
-#            self.tol = tol
-#        if type(tol) == float:
-#            self.tol = [tol]
-#        assert (len(self.tol) == len(self.varname))
-#        self.maxiter = maxiter
-#        self.niter = niter
-#        self.mixer = mixer
-#        self.relative_tol = relative_tol
-#        self.stats = stats
-#
-#    def do(self):
-#        """
-#        Run the scc calculation. When done, the solvers are
-#        linked and contain the SCC solutions
-#        """
-#        solver_b = self.solver_b
-#        solver_a = self.solver_a
-#
-#        # I assume that solver_a has not solver_b linked. We check if true, otherwise
-#        # we remove it
-#        if solver_b in solver_a.get(self.b_in_a_name):
-#            solver_a.set(self.b_in_a_name, solver_b, mode='remove')
-#        # We need to buffer the results of solver_a in a local solver to keep
-#        # the result of previous iteration.
-#        # Alternate implementation: make a deepcopy and you can avoid to explicitly call get(var)
-#        local_a = copy.copy(solver_a)
-#        for var in self.varname:
-#            local_a.get(var)
-#        # ----------------------------------------------------------------------------------------
-#        solver_a.set(self.b_in_a_name, solver_b, **self.b_in_a_kwargs)
-#
-#        # If filled, it contains maximum value and diff for each iterations for each variable
-#        if self.stats:
-#            out_stats = np.ndarray(shape=(self.maxiter, len(self.varname) * 2))
-#        else:
-#            out_stats = None
-#
-#        for n in range(self.maxiter):
-#            #Calculate Bn = f(An-1)
-#            #print('n',n)
-#            solver_b.set(self.a_in_b_name, local_a, **self.a_in_b_kwargs)
-#            solver_a.cleandep(self.b_in_a_name)
-#            if self.mixer is not None:
-#                if self.mixer['type'] == 'linear':
-#                    w = self.mixer['weight']
-#                    assert (w <= 1.0 and w > 0.0)
-#                    for var in self.varname:
-#                        # TODO: the mixer does not work, Glesser diverges in SCBA
-#                        # print('local max',(np.absolute(local_a.get(var)).max()))
-#                        solver_a.set(var, solver_a.get(var) * w + (1.0 - w) * local_a.get(var))
-#            #print('var ', var,' solver_a', solver_a.get(var), ' local ', local_a.get(var))
-#
-#            #Calculate difference between previous and current state
-#            if self.relative_tol:
-#                diff = np.array(
-#                    [(np.absolute(solver_a.get(var) - local_a.get(var))).max() /
-#                     (np.absolute(solver_a.get(var))).max()
-#                     for var in self.varname])
-#            else:
-#                diff = np.array(
-#                    [(np.absolute(solver_a.get(var) - local_a.get(var))).max()
-#                     for var in self.varname])
-#
-#            #Build some statistics, if needed
-#            if self.stats:
-#                out_stats[n, ::2] = diff
-#                maxval = np.array([(np.absolute(solver_a.get(var))).max() for var in self.varname])
-#                out_stats[n, 1::2] = maxval
-#            if not self.stats:
-#                out_stats = None
-#
-#            #Verify exit condition
-#            if self.niter is not None:
-#                if n == self.niter - 1:
-#                    if self.stats:
-#                        return out_stats[:n, :]
-#                    else:
-#                        return
-#            else:
-#                if np.all(diff < np.array(self.tol)):
-#                    if self.stats:
-#                        return out_stats[:n, :]
-#                    else:
-#                        return
-#            if n == self.maxiter - 1:
-#                raise RuntimeError('Maximum number of iterations reached in SCCMixer')
-#            local_a = copy.copy(solver_a)
-#
-#        return out_stats
-#
-#
-#class SCBA():
-#    """A class to solve Self Consistent Born Approximation Loop"""
-#
-#    def __init__(self,
-#                 #Params
-#                 greensolver, selfener, tol=defaults.scbatol, maxiter=1000,
-#                 task='both', niter=None, mixer_parameter=1.0, stats=False):
-#        """ greensolver and selfener are the solver
-#        to be plugged in the loop.
-#        Task specify whether we loop on the equilibrium ('eq') or the Keldysh
-#        ('keldysh') or both.
-#        If the tolerance is a single scalar, the same tolerance is applied to both """
-#
-#        #Param
-#        self.greensolver = greensolver
-#        self.selfener = selfener
-#        self.tol = tol
-#        self.maxiter = maxiter
-#        self.task = task
-#        self.niter = niter
-#        self.task = task
-#        self.mixer_parameter = mixer_parameter
-#        self.stats = stats
-#
-#
-#    def solve(self):
-#        """Link the green and self energy solvers and run the scba loop"""
-#
-#        eq = False
-#        keldysh = False
-#        if self.task == 'keldysh':
-#            keldysh = True
-#        elif self.task == 'eq':
-#            eq = True
-#        elif self.task == 'both':
-#            keldysh = True
-#            eq = True
-#        else:
-#            raise ValueError('Unknown task. Task must be keldysh, eq or both')
-#
-#        if eq:
-#            leads = self.greensolver.get('leads')
-#            if self.selfener in leads:
-#                leads.remove(self.selfener)
-#                self.greensolver.set('leads', leads)
-#            green_ret = self.greensolver.get('green_ret')
-#            self.greensolver.set('leads', leads + [self.selfener])
-#            self.greensolver.set('green_ret', green_ret)
-#            sccmixer = LinearMixerSCC(self.greensolver, 'green_ret',
-#                                      self.selfener, 'sigma_ret', self.maxiter,
-#                                      self.tol, niter=self.niter)
-#            sccmixer.solve()
-#
-#        if keldysh:
-#            leads = self.greensolver.get('leads')
-#            if self.selfener in leads:
-#                leads.remove(self.selfener)
-#                self.greensolver.set('leads', leads)
-#            green_gr = self.greensolver.get('green_lr')
-#            leads = self.greensolver.get('leads')
-#            self.greensolver.set('leads', leads + [self.selfener])
-#            self.greensolver.set('green_lr', green_gr)
-#            sccmixer = LinearMixerSCC(self.greensolver, 'green_lr',
-#                                      self.selfener, 'sigma_lr', self.maxiter,
-#                                      self.tol, alpha=self.mixer_parameter,
-#                                      niter=self.niter)
-#            sccmixer.solve()
-#
-#        return
