@@ -1,5 +1,4 @@
 import numpy as np
-from pyta import defaults
 from pyta import mathutils
 from pyta import solver
 import pyta.lead
@@ -47,9 +46,9 @@ class Green(solver.Solver):
         self.size = size
 
         #Outvar
-        self.green_ret = None
-        self.green_gr = None
-        self.green_lr = None
+        self._green_ret = None
+        self._green_gr = None
+        self._green_lr = None
 
         super(Green, self).__init__()
 
@@ -57,36 +56,39 @@ class Green(solver.Solver):
         """
         Set all output variables to undefined state
         """
-        self.green_ret = None
-        self.green_lr = None
-        self.green_gr = None
+        self._green_ret = None
+        self._green_lr = None
+        self._green_gr = None
 
-    def get_green_ret(self):
+    @property
+    def green_ret(self):
         """
         Returns:
             np.matrix: Retarded Green's function
         """
-        if self.green_ret is None:
+        if self._green_ret is None:
             self._do_green_ret()
-        return self.green_ret
+        return self._green_ret
 
-    def get_green_lr(self):
+    @property
+    def green_lr(self):
         """
         Returns:
-        np.matrix: Lesser Green's function
+            np.matrix: Lesser Green's function
         """
-        if self.green_lr is None:
+        if self._green_lr is None:
             self._do_green_lr()
-        return self.green_lr
+        return self._green_lr
 
-    def get_green_gr(self):
+    @property
+    def green_gr(self):
         """
         Returns:
             np.matrix: Greater Green's function
         """
-        if self.green_gr is None:
+        if self._green_gr is None:
             self._do_green_gr()
-        return self.green_gr
+        return self._green_gr
 
     def _do_green_ret(self):
         raise RuntimeError('Base Class Green has no _do_green_ret method')
@@ -95,15 +97,13 @@ class Green(solver.Solver):
         """Calculate equilibrium Green's function.
         If the lesser is available avoid direct calculation of sigma_gr."""
         if self.green_lr is not None:
-            spectral = self.get_spectral()
-            green_lr = self.get_green_lr()
-            self.green_gr = green_lr - 1j * spectral
+            self._green_gr = self.green_lr - 1j * self.spectral
         else:
             sigma_gr = np.asmatrix(
                 np.zeros((self.size, self.size), dtype=np.complex128))
             self._add_leads(sigma_gr, "sigma_gr")
-            gr = self.get_green_ret()
-            self.green_gr = np.dot(np.dot(gr, sigma_gr),gr.conj().T)
+            gr = self.green_ret
+            self._green_gr = np.dot(np.dot(gr, sigma_gr),gr.conj().T)
         return
 
     def _do_green_lr(self):
@@ -111,24 +111,23 @@ class Green(solver.Solver):
         sigma_lr = np.asmatrix(
             np.zeros((self.size, self.size), dtype=np.complex128))
         self._add_leads(sigma_lr, "sigma_lr")
-        green_ret = self.get_green_ret()
-        self.green_lr = np.dot(np.dot(green_ret, sigma_lr), green_ret.conj().T)
+        green_ret = self.green_ret
+        self._green_lr = np.dot(np.dot(green_ret, sigma_lr), green_ret.conj().T)
         return
 
     def set_leads(self, leads):
         self.leads = leads
 
-    def get_spectral(self):
+    @property
+    def spectral(self):
         """Get spectral function A = j(G^{r} - G^{a})"""
-        green_ret = self.get_green_ret()
-        spectral = 1j * (green_ret - green_ret.conj().T)
-        return spectral
+        return 1j * (self.green_ret - self.green_ret.conj().T)
 
-    def _add_leads(self, mat, varname):
+    def _add_leads(self, mat, attribute):
         """Subtract all the leads contributions from matrix mat.
          Result in place. """
         for lead in self.leads:
-            sigma = lead.get(varname)
+            sigma = getattr(lead, attribute)
             assert (sigma.shape[0] == sigma.shape[1])
             size = sigma.shape[0]
             pos = lead.position
@@ -148,8 +147,7 @@ class Green(solver.Solver):
         mat[pos: pos + leadsize, pos:pos + leadsize] = leadmat
         return mat
 
-
-    def get_transmission(self, leads=None):
+    def transmission(self, leads=None):
         """Calculate the transmission in place for a given couple of leads,
         specified as an iterable. If leads are not specified, use lead 0 and 1
         if set.
@@ -164,20 +162,20 @@ class Green(solver.Solver):
         gamma1 = np.zeros((self.size, self.size), dtype=np.complex128)
         pos = lead1.position
         size = lead1.size
-        gamma1[pos: pos + size, pos:pos + size] += lead1.get('gamma')
+        gamma1[pos: pos + size, pos:pos + size] += lead1.gamma
         gamma2 = np.zeros((self.size, self.size), dtype=np.complex128)
         pos = lead2.position
         size = lead2.size
-        gamma2[pos: pos + size, pos:pos + size] += lead2.get('gamma')
-        green_ret = self.get_green_ret()
+        gamma2[pos: pos + size, pos:pos + size] += lead2.gamma
+        green_ret = self.green_ret
         trans = (np.trace(np.dot(np.dot(np.dot(gamma1, green_ret)
                                         , gamma2),green_ret.conj().T)))
         return trans
 
-    def get_meirwingreen(self, lead=None):
+    def meirwingreen(self, lead=None):
         """
         Calculate the total current in a specified lead
-        by applying the Meir-Wirgreen formula
+        by applying the Meir-Wingreen formula
 
         Args:
             lead (Lead): reference lead where the current is evaluated
@@ -186,15 +184,15 @@ class Green(solver.Solver):
             float: value of current in given energy point
         """
         assert (lead is not None)
-        glr = self.get_green_lr()
-        ggr = self.get_green_gr()
+        glr = self.green_lr
+        ggr = self.green_gr
         sgr = self._resize_lead_matrix(lead, 'sigma_gr')
         slr = self._resize_lead_matrix(lead, 'sigma_lr')
         const = 1.0  #pyta.consts.e / pyta.consts.h_eVs)
         current = const * np.trace(np.dot(slr, ggr) - np.dot(sgr, glr))
         return current
 
-    def get_dattacurrent(self, lead=None):
+    def dattacurrent(self, lead=None):
         """Calculate the current using the Datta version of Meir Wingreen:
             I = Sigma_lesser * A - Gamma * G_lesser
 
@@ -205,19 +203,20 @@ class Green(solver.Solver):
             float: value of current in given energy point
         """
         assert (lead is not None)
-        green_n = -1.0j * self.get_green_lr()
+        green_n = -1.0j * self.green_lr
         sigma_n = -1.0j * self._resize_lead_matrix(lead, 'sigma_lr')
         gamma = self._resize_lead_matrix(lead, 'gamma')
-        spectral = self.get_spectral()
+        spectral = self.spectral
         current = ((pyta.consts.e / pyta.consts.h_eVs) *
                    np.trace(np.dot(sigma_n, spectral) - np.dot(gamma , green_n)))
         return current
 
-    def get_occupation(self):
+    @property
+    def occupation(self):
         """Calculate the occupation by comparing the lesser green function
         and the spectral function. """
-        diag1 = self.get_green_lr()
-        diag2 = self.get_spectral()
+        diag1 = self.green_lr
+        diag2 = self.spectral
         occupation = (np.imag(diag1 / diag2))
         return occupation
 
@@ -292,9 +291,7 @@ class ElGreen(Green):
 
         #Param
         #========================================================
-        assert (type(ham) == np.matrixlib.defmatrix.matrix)
         if over is not None:
-            assert (type(over) == np.matrixlib.defmatrix.matrix)
             self.over = over
         self.ham = ham
 
@@ -311,36 +308,42 @@ class ElGreen(Green):
         self.delta = delta
         #Invar
         #=================================
-        self.energy = None
+        self._energy = None
         #=================================
 
         #Base constructor
         super(ElGreen, self).__init__(size)
 
+    @property
+    def energy(self):
+        return self._energy
 
-    def set_energy(self, energy):
+    @energy.setter
+    def energy(self, value):
         """Set energy point"""
-        if energy != self.energy:
-            self.energy = energy
+        if value != self._energy:
+            self._energy = value
             self.reset()
             #Update energy point in all leads where set_energy is defined
-            self._spread_energy(energy)
+            self._spread_energy(value)
         return
 
     def _spread_energy(self, energy):
         "Distribute energy in leads"
         for lead in self.leads:
             try:
-                lead.set('energy', energy)
+                getattr(lead, "energy")
+                lead.energy = energy
             except AttributeError:
                 pass
         return
 
-    def get_local_currents(self):
+    @property
+    def local_currents(self):
         """
         Calculate the matrices of local currents for all orbitals in the system
         """
-        green_lr = self.get_green_lr()
+        green_lr = self.green_lr
         ham = self.ham
         over = self.over
         en = self.energy
@@ -358,7 +361,7 @@ class ElGreen(Green):
         ## leads. Anyway it is small respect to self energy. If you don't want
         ## it, set delta to 0.0 in constructor
         esh = esh - sigma + 1j*self.delta * self.over
-        self.green_ret = esh.I
+        self._green_ret = esh.I
 
         return self.green_ret
 
@@ -409,19 +412,24 @@ class PhGreen(Green):
 
         #Invar
         #=======================================
-        self.frequency = None
+        self._frequency = None
         self.delta = delta
         #=======================================
 
         #Base constructor
         super(PhGreen, self).__init__(size)
 
-    def set_frequency(self, frequency):
+    @property
+    def frequency(self):
+        return self._frequency
+
+    @frequency.setter
+    def frequency(self, value):
         """Set energy point"""
         if frequency != self.frequency:
-            self.frequency = frequency
+            self.frequency = value
             self.reset()
-            self._spread_frequency(frequency)
+            self._spread_frequency(value)
 
     def _spread_frequency(self, frequency):
         "Distribute energy in leads"
@@ -439,7 +447,7 @@ class PhGreen(Green):
         esh = self.frequency * self.frequency * self.mass - self.spring
         self._add_lead_sigma(esh)
         esh = esh + 1j*self.delta * self.over
-        self.green_ret = esh.I
+        self._green_ret = esh.I
 
         return self.green_ret
 

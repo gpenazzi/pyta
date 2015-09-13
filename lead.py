@@ -59,33 +59,56 @@ class Lead(solver.Solver):
         #some subclass calculates them on-the-fly directly during every get
         #(gamma is a typical example gamma = sigma_ret - sigma_ret.H)
         #================================
-        self.sigma_ret = None
-        self.sigma_gr = None
-        self.sigma_lr = None
-        self.gamma = None
+        self._sigma_ret = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+        self._gamma = None
         #================================
 
         super(Lead, self).__init__()
 
-    def get_gamma(self):
+    @property
+    def gamma(self):
         "Return \Gamma=j(\Sigma^{r} - \Sigma^{a})"""
-        sigma = self.get('sigma_ret')
-        gamma = 1.j * (sigma - sigma.H)
+        sigma = self.sigma_ret
+        gamma = 1.j * (sigma - sigma.conj().T)
         return gamma
 
-    def get_occupation(self):
+    @property
+    def occupation(self):
         """Calculate the occupation by comparing the lesser green function
         and the spectral function. """
-        diag1 = self.get('sigma_lr')
-        diag2 = self.get('gamma')
+        diag1 = self.sigma_lr
+        diag2 = self.gamma
         occupation = (np.imag(diag1 / diag2))
         return occupation
+
+    @property
+    def sigma_ret(self):
+        if self._sigma_ret is None:
+            self._do_sigma_ret()
+        return self._sigma_ret
+
+    @property
+    def sigma_gr(self):
+        if self._sigma_gr is None:
+            self._do_sigma_gr()
+        return self._sigma_gr
+
+    @property
+    def sigma_lr(self):
+        if self._sigma_lr is None:
+            self._do_sigma_lr()
+        return self._sigma_lr
 
     def reset(self):
         """
         Set all the output variables to undefined state
         """
-
+        self._sigma_ret = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+        self._gamma = None
 
 class MRDephasing(Lead):
     """A virtual Lead modelling Momentum relaxing dephasing"""
@@ -129,10 +152,10 @@ class MRDephasing(Lead):
 
         #Invar
         #================================
-        self.coupling = coupling
-        self.green_ret = green_ret
-        self.green_lr = green_lr
-        self.rotation = rotation
+        self._coupling = coupling
+        self._green_ret = green_ret
+        self._green_lr = green_lr
+        self._rotation = rotation
         #================================
 
         #Internal
@@ -147,31 +170,51 @@ class MRDephasing(Lead):
         position = 0
         super(MRDephasing, self).__init__(position)
 
-    def set_coupling(self, coupling):
+    @property
+    def coupling(self):
+        return self._coupling
+
+    @coupling.setter
+    def coupling(self, value):
         """Set a new dephasing parameter"""
-        assert (type(coupling) == np.ndarray)
-        self.sigma_ret = None
-        self.sigma_gr = None
-        self.sigma_lr = None
-        self.coupling = coupling
-        self.size = len(coupling)
+        assert (type(value) == np.ndarray)
+        self._sigma_ret = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+        self.coupling = value
+        self.size = len(value)
         self.rotation = np.asmatrix(np.eye(self.size))
         return
 
-    def set_rotation(self, rotation):
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, value):
         """
          Set a transformation matrix (for non-orthogonal cases)
         """
-        self.rotation = rotation
+        self._rotation = value
         self._has_rotation = True
 
-    def set_green_ret(self, green_ret):
-        self.sigma_ret = None
-        self.green_ret = green_ret
+    @property
+    def green_ret(self):
+        return self._green_ret
 
-    def set_green_lr(self, green_lr):
-        self.sigma_lr = None
-        self.green_lr = green_lr
+    @green_ret.setter
+    def green_ret(self, value):
+        self._sigma_ret = None
+        self._green_ret = value
+
+    @property
+    def green_lr(self):
+        return self._green_lr
+
+    @green_lr.setter
+    def green_lr(self, value):
+        self._sigma_lr = None
+        self._green_lr = value
 
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
@@ -196,14 +239,14 @@ class MRDephasing(Lead):
             tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
             np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(),
                                               self.coupling))
-            self.sigma_ret = tmp
+            self._sigma_ret = tmp
         return
 
     def _do_sigma_gr(self):
         """Calculate the retarded self energy"""
-        gamma = self.get('gamma')
-        sigma_lr = self.get('sigma_lr')
-        self.sigma_gr = sigma_lr - 1j * gamma
+        gamma = self.gamma
+        sigma_lr = self.sigma_lr
+        self._sigma_gr = sigma_lr - 1j * gamma
         return
 
     def _do_sigma_lr(self):
@@ -211,7 +254,7 @@ class MRDephasing(Lead):
         tmp = np.asmatrix(np.eye(self.size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(self.green_lr.diagonal(),
                                           self.coupling))
-        self.sigma_lr = tmp
+        self._sigma_lr = tmp
         return
 
 
@@ -278,18 +321,18 @@ class MCDephasing(Lead):
 
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
-        green_ret = self.greensolver.get('green_ret')
-        self.sigma_ret = np.dot(green_ret, self.coupling)
+        green_ret = self.greensolver.green_ret
+        self._sigma_ret = np.dot(green_ret, self.coupling)
 
     def _do_sigma_gr(self):
         """Calculate the greater self energy"""
-        green_gr = self.greensolver.get('green_gr')
-        self.sigma_gr = np.dot(green_gr, self.coupling)
+        green_gr = self.greensolver.green_gr
+        self._sigma_gr = np.dot(green_gr, self.coupling)
 
     def _do_sigma_lr(self):
         """Calculate the greater self energy"""
-        green_lr = self.greensolver.get('green_lr')
-        self.sigma_lr = np.dot(green_lr, self.coupling)
+        green_lr = self.greensolver.green_lr
+        self._sigma_lr = np.dot(green_lr, self.coupling)
 
 
 class ElLead(Lead):
@@ -335,7 +378,7 @@ class ElLead(Lead):
         #Param
         #==========================================================
         self.ham = ham
-        if ((ham - ham.H) > 1e-10).any():
+        if ((ham - ham.conj().T) > 1e-10).any():
             raise ValueError(
                 'Error in Lead parameter. The Hamiltonian is not hermitian')
         self.ham_t = ham_t
@@ -343,56 +386,65 @@ class ElLead(Lead):
         self.over = over
         self.over_t = over_t
         self.over_ld = over_ld
-        #Some check
-        assert (type(ham) == np.matrixlib.defmatrix.matrix)
-        if over:
-            assert (type(over) == np.matrixlib.defmatrix.matrix)
-        #H must be a square matrix
-        assert (self.ham.shape[0] == self.ham.shape[1])
 
         #Set defaults
         self.pl_size = self.ham.shape[0]
         if over is None:
-            self.over = np.asmatrix(np.eye(self.pl_size))
+            self.over = np.eye(self.pl_size)
         if over_t is None:
-            self.over_t = np.asmatrix(np.zeros(self.ham_t.shape))
+            self.over_t = np.zeros(self.pl_size)
         if over_ld is None:
-            self.over_ld = np.asmatrix(np.zeros(self.ham_ld.shape))
+            self.over_ld = np.zeros(self.pl_size)
         #===========================================================
 
         #Invar
         #============================
-        self.energy = None
+        self._energy = None
         self.mu = 0.0
         self.delta = delta
-        self.temperature = temperature
+        self._temperature = temperature
         #============================
 
         #Base constructor
         self.size = self.ham_ld.shape[0]
         super(ElLead, self).__init__(position)
 
-    def set_temperature(self, temperature):
+    @property
+    def temperature(self):
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, value):
         """Set temperature, for non equilibrium self energy"""
-        self.temperature = temperature
-        self.sigma_gr = None
-        self.sigma_lr = None
+        self._temperature = value
+        self._sigma_gr = None
+        self._sigma_lr = None
         return
 
-    def set_energy(self, energy):
+    @property
+    def energy(self):
+        return self._energy
+
+    @energy.setter
+    def energy(self, value):
         """Set energy point"""
-        if energy != self.energy:
-            self.energy = energy
-            self.sigma_ret = None
-            self.sigma_lr = None
-            self.sigma_gr = None
+        if value != self._energy:
+            self._energy = value
+            self._sigma_ret = None
+            self._sigma_lr = None
+            self._sigma_gr = None
         return
 
-    def set_mu(self, mu):
+    @property
+    def mu(self):
+        return self._mu
+
+    @mu.setter
+    def mu(self, value):
         """Set a chemical potential, for nonequilibrium self energy"""
-        self.mu = mu
-        self.sigma_gr = None
-        self.sigma_lr = None
+        self._mu = value
+        self._sigma_gr = None
+        self._sigma_lr = None
         return
 
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
@@ -425,24 +477,23 @@ class ElLead(Lead):
 
     def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
-        z = self.energy
+        z = self._energy
         tau_ld = z * self.over_ld - self.ham_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
-        tau_dl = z * self.over_ld.H - self.ham_ld.H
-        self.sigma_ret = np.dot(tau_dl, a_ld)
-        return self.sigma_ret
+        tau_dl = z * self.over_ld.conj().T - self.ham_ld.conj().T
+        self._sigma_ret = np.dot(tau_dl, a_ld)
 
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_lr = (
-            dist.fermi(self.energy, self.mu, temppot=self.temperature) *
-            1j * self.get_gamma())
+        self._sigma_lr = (
+            dist.fermi(self._energy, self.mu, temppot=self._temperature) *
+            1j * self.gamma)
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_gr = (
+        self._sigma_gr = (
             (dist.fermi(self.energy, self.mu, temppot=self.temperature)
              - 1.0) * 1j * self.get_gamma())
 
@@ -479,29 +530,39 @@ class PhLead(Lead):
 
         #Invar
         #===================================
-        self.frequency = None
+        self._frequency = None
         self.delta = delta
-        self.temperature = temperature
+        self._temperature = temperature
         #===================================
 
         #Base constructor
         self.size = self.spring_ld.shape[0]
         super(PhLead, self).__init__(position)
 
-    def set_temperature(self, temperature):
+    @property
+    def temperature(self):
+       return self._temperature
+
+    @temperature.setter
+    def temperature(self, value):
         """Set temperature, for non equilibrium self energy"""
-        self.temperature = temperature
-        self.sigma_gr = None
-        self.sigma_lr = None
+        self._temperature = value
+        self._sigma_gr = None
+        self._sigma_lr = None
         return
 
-    def set_frequency(self, frequency):
+    @property
+    def frequency(self):
+        return self._frequency
+
+    @frequency.setter
+    def frequency(self,value):
         """Set frequency point"""
-        if frequency != self.frequency:
-            self.frequency = frequency
-            self.sigma_ret = None
-            self.sigma_lr = None
-            self.sigma_gr = None
+        if value != self._frequency:
+            self._frequency = value
+            self._sigma_ret = None
+            self._sigma_lr = None
+            self._sigma_gr = None
         return
 
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
@@ -539,22 +600,22 @@ class PhLead(Lead):
         tau_ld = self.spring_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
         tau_dl = self.spring_ld.conj().T
-        self.sigma_ret = np.dot(tau_dl, a_ld)
+        self._sigma_ret = np.dot(tau_dl, a_ld)
         return
 
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         energy = self.frequency * consts.hbar_eV_fs
-        self.sigma_lr = ((dist.bose(energy, temppot=self.temperature)) *
-                         (-1j) * self.get_gamma())
+        self._sigma_lr = ((dist.bose(energy, temppot=self.temperature)) *
+                         (-1j) * self.gamma)
         return
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
         energy = self.frequency * consts.hbar_eV_fs
-        self.sigma_gr = ((dist.bose(energy, self.mu, temppot=self.temperature)
-                          + 1.0) * (-1j) * self.get_gamma())
+        self._sigma_gr = ((dist.bose(energy, self.mu, temppot=self.temperature)
+                          + 1.0) * (-1j) * self.gamma)
         return
 
 
@@ -595,30 +656,40 @@ class ElWideBand(Lead):
 
         #Invar
         #============================
-        self.energy = None
-        self.mu = mu
+        self._energy = None
+        self._mu = mu
         self.delta = delta
-        self.temperature = temperature
+        self._temperature = temperature
         #============================
 
         #Base constructor
         self.size = self.ham_ld.shape[0]
         super(ElWideBand, self).__init__(position)
 
-    def set_temperature(self, temperature):
+    @property
+    def temperature(self):
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, value):
         """Set temperature, for non equilibrium self energy"""
-        self.temperature = temperature
-        self.sigma_gr = None
-        self.sigma_lr = None
+        self._temperature = value
+        self._sigma_gr = None
+        self._sigma_lr = None
         return
 
-    def set_energy(self, energy):
+    @property
+    def energy(self):
+        return self._energy
+
+    @energy.setter
+    def energy(self, value):
         """Set energy point"""
-        if energy != self.energy:
-            self.energy = energy
-            self.sigma_ret = None
-            self.sigma_lr = None
-            self.sigma_gr = None
+        if value != self._energy:
+            self._energy = value
+            self._sigma_ret = None
+            self._sigma_lr = None
+            self._sigma_gr = None
         return
 
     def _do_sigma_ret(self):
@@ -628,7 +699,7 @@ class ElWideBand(Lead):
         np.fill_diagonal(dos_mat, self.dos)
         tau_ld = z * self.over_ld - self.ham_ld
         a_ld = -1j * np.pi * np.dot(tau_ld, self.dos)
-        self.sigma_ret = np.dot(a_ld, tau_ld.H)
+        self._sigma_ret = np.dot(a_ld, tau_ld.H)
         return
 
     def _do_sigma_lr(self):
@@ -636,7 +707,7 @@ class ElWideBand(Lead):
         assert (not self.mu is None)
         self.sigma_lr = (
             dist.fermi(self.energy, self.mu, temppot=self.temperature) *
-            1j * self.get_gamma())
+            1j * self.gamma)
         return
 
     def _do_sigma_gr(self):
@@ -644,7 +715,7 @@ class ElWideBand(Lead):
         assert (not self.mu is None)
         self.sigma_gr = (
             (dist.fermi(self.energy, self.mu, temppot=self.temperature)
-             - 1.0) * 1j * self.get_gamma())
+             - 1.0) * 1j * self.gamma)
         return
 
 
@@ -681,27 +752,37 @@ class ElWideBandGamma(Lead):
         #============================
         self.energy = None
         self.mu = mu
-        self.temperature = temperature
+        self._temperature = temperature
         #============================
 
         #Base constructor
         self.size = size
         super(ElWideBandGamma, self).__init__(position)
 
-    def set_temperature(self, temperature):
+    @property
+    def temperature(self):
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, value):
         """Set temperature, for non equilibrium self energy"""
-        self.temperature = temperature
-        self.sigma_gr = None
-        self.sigma_lr = None
+        self._temperature = value
+        self._sigma_gr = None
+        self._sigma_lr = None
         return
 
-    def set_energy(self, energy):
+    @property
+    def energy(self):
+        return self._energy
+
+    @energy.setter
+    def energy(self, value):
         """Set energy point"""
-        if energy != self.energy:
-            self.energy = energy
-            self.sigma_ret = None
-            self.sigma_lr = None
-            self.sigma_gr = None
+        if value != self._energy:
+            self._energy = value
+            self._sigma_ret = None
+            self._sigma_lr = None
+            self._sigma_gr = None
         return
 
     def _do_sigma_ret(self):
@@ -709,21 +790,21 @@ class ElWideBandGamma(Lead):
         gamma_mat = np.matrix(np.zeros((self.pl_size, self.pl_size),
                                        dtype=np.complex128))
         np.fill_diagonal(gamma_mat, self.coupling)
-        self.sigma_ret = 1j * gamma_mat / 2.
+        self._sigma_ret = 1j * gamma_mat / 2.
         return
 
     def _do_sigma_lr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
         self.sigma_lr = (
-            dist.fermi(self.energy, self.mu, temppot=self.temperature) *
-            1j * self.get_gamma())
+            dist.fermi(self._energy, self.mu, temppot=self.temperature) *
+            1j * self.gamma)
         return
 
     def _do_sigma_gr(self):
         """Calculate the Sigma lesser"""
         assert (not self.mu is None)
-        self.sigma_gr = (
-            (dist.fermi(self.energy, self.mu, temppot=self.temperature)
-             - 1.0) * 1j * self.get_gamma())
+        self._sigma_gr = (
+            (dist.fermi(self._energy, self.mu, temppot=self.temperature)
+             - 1.0) * 1j * self.gamma)
         return

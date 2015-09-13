@@ -2,14 +2,15 @@ import collections
 
 class Solver(object):
     """
-    Base class for solvers in pyta. Define the general infrastructure
-    and external API of a solver type class
+    Base class for solvers in pyta.
+    Since the modifications in the API this is a sort of vitual class
+    to describe methods which need to be implemented in derived classes
 
     Every Solver is characterized by:
 
     parameters
     immutable during the instance lifetime, initialized during construction.
-    They are retrieved using get() methods.
+    They can be retrieved but should not be set
 
     input variables:
     mutable during the instance lifetime. The are set with set() method.
@@ -29,57 +30,6 @@ class Solver(object):
 
     def __init__(self):
         pass
-
-
-    def set(self, invarname, value):
-        """
-        Set an input variable invar specified by a string.
-        If a _set_<name> function exists in the derived class, this
-        function is invoked and arguments passed, otherwise a minimal
-        set function is invoked.
-        """
-
-        # If a set function exists, it is called
-        function_name = 'set_' + invarname
-        exist = getattr(self, function_name, None)
-        if callable(exist):
-            exist(value)
-            return
-
-        # If not, we try to resolve it automagically
-        # If the member is not an iterable, look for
-        # a member with the given name
-        exist = getattr(self, invarname)
-        # Default implementation for non iterable
-        setattr(self, invarname,  value)
-        return
-
-
-    def get(self, outvarname, **kwargs):
-        """
-        Get an output variable invar specified by a string.
-        If a _get_<name> function exists in the derived class, this
-        function is invoked and arguments passed, otherwise a minimal
-        set function is invoked.
-        """
-        function_name = 'get_' + outvarname
-        exist = getattr(self, function_name, None)
-        if callable(exist):
-            return exist(**kwargs)
-
-        member_name = outvarname
-        exist = getattr(self, member_name)
-        if exist is None:
-            #Trying to invoke a do function
-            do_function = '_do_' + outvarname
-            do_exist = getattr(self, do_function, None)
-            if callable(do_exist):
-                do_exist(**kwargs)
-                return getattr(self, member_name)
-            else:
-                raise ValueError('invar does not correspond to any member')
-        else:
-            return exist
 
     def reset(self):
         raise NotImplementedError()
