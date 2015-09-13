@@ -43,7 +43,7 @@ class Green(solver.Solver):
         self.leads = list()
 
         #Param
-        self.size = size
+        self._size = size
 
         #Outvar
         self._green_ret = None
@@ -100,16 +100,16 @@ class Green(solver.Solver):
             self._green_gr = self.green_lr - 1j * self.spectral
         else:
             sigma_gr = np.asmatrix(
-                np.zeros((self.size, self.size), dtype=np.complex128))
+                np.zeros((self._size, self._size), dtype=np.complex128))
             self._add_leads(sigma_gr, "sigma_gr")
             gr = self.green_ret
-            self._green_gr = np.dot(np.dot(gr, sigma_gr),gr.conj().T)
+            self._green_gr = np.dot(np.dot(gr, sigma_gr), gr.conj().T)
         return
 
     def _do_green_lr(self):
         """Calculate equilibrium Green's function"""
         sigma_lr = np.asmatrix(
-            np.zeros((self.size, self.size), dtype=np.complex128))
+            np.zeros((self._size, self._size), dtype=np.complex128))
         self._add_leads(sigma_lr, "sigma_lr")
         green_ret = self.green_ret
         self._green_lr = np.dot(np.dot(green_ret, sigma_lr), green_ret.conj().T)
@@ -141,7 +141,7 @@ class Green(solver.Solver):
         Variable to be converted must be given as string."""
         leadmat = lead.get(varname)
         vartype = np.result_type(leadmat)
-        mat = np.zeros((self.size, self.size), dtype=vartype)
+        mat = np.zeros((self._size, self._size), dtype=vartype)
         leadsize = leadmat.shape[0]
         pos = lead.position
         mat[pos: pos + leadsize, pos:pos + leadsize] = leadmat
@@ -159,17 +159,17 @@ class Green(solver.Solver):
         else:
             lead1 = self.leads[0]
             lead2 = self.leads[1]
-        gamma1 = np.zeros((self.size, self.size), dtype=np.complex128)
+        gamma1 = np.zeros((self._size, self._size), dtype=np.complex128)
         pos = lead1.position
         size = lead1.size
         gamma1[pos: pos + size, pos:pos + size] += lead1.gamma
-        gamma2 = np.zeros((self.size, self.size), dtype=np.complex128)
+        gamma2 = np.zeros((self._size, self._size), dtype=np.complex128)
         pos = lead2.position
         size = lead2.size
         gamma2[pos: pos + size, pos:pos + size] += lead2.gamma
         green_ret = self.green_ret
-        trans = (np.trace(np.dot(np.dot(np.dot(gamma1, green_ret)
-                                        , gamma2),green_ret.conj().T)))
+        trans = (np.trace(np.dot(np.dot(np.dot(gamma1, green_ret),
+                                        gamma2), green_ret.conj().T)))
         return trans
 
     def meirwingreen(self, lead=None):
@@ -188,7 +188,7 @@ class Green(solver.Solver):
         ggr = self.green_gr
         sgr = self._resize_lead_matrix(lead, 'sigma_gr')
         slr = self._resize_lead_matrix(lead, 'sigma_lr')
-        const = 1.0  #pyta.consts.e / pyta.consts.h_eVs)
+        const = 1.0  # pyta.consts.e / pyta.consts.h_eVs)
         current = const * np.trace(np.dot(slr, ggr) - np.dot(sgr, glr))
         return current
 
@@ -208,7 +208,8 @@ class Green(solver.Solver):
         gamma = self._resize_lead_matrix(lead, 'gamma')
         spectral = self.spectral
         current = ((pyta.consts.e / pyta.consts.h_eVs) *
-                   np.trace(np.dot(sigma_n, spectral) - np.dot(gamma , green_n)))
+                   np.trace(np.dot(sigma_n, spectral) -
+                            np.dot(gamma, green_n)))
         return current
 
     @property
@@ -237,22 +238,22 @@ class Green(solver.Solver):
             raise AttributeError('Unknown mode: must be equilibrium or keldysh')
 
         #Initialize the virtual lead self-energy to zero
-        lead.set(green_varname, np.zeros((self.size, self.size)))
+        lead.set(green_varname, np.zeros((self._size, self._size)))
 
         def func1(var1):
             ## Note: var1 here is dummy because it is automatically retrievable
-            ## everytime a lead.get is invoked in func2
+            ## everytime an output variable is retrieved in func2
             self.reset()
-            return self.get(green_varname)
+            return getattr(self, green_varname)
 
         def func2(var2):
             ## Here var2 in input must be the right green's function and the
             ## return value is the corresponding sigma
-            lead.set(green_varname, var2)
-            return lead.get(sigma_varname)
+            setattr(lead, green_varname, var2)
+            return getattr(lead, sigma_varname)
 
         ## G0 calculated here (self-energy initialized to zero)
-        var1_guess = self.get(green_varname)
+        var1_guess = getattr(self, green_varname)
         mathutils.linear_mixer(func1, func2, var1_guess, niter=niter,
                                tolerance=tolerance,
                                alpha=alpha, maxiter=maxiter)
@@ -297,7 +298,7 @@ class ElGreen(Green):
 
         #Consistency check (yes, it happened to wrongly set a non hermitian
         # hamiltonian...good luck spotting that without a check)
-        if (np.abs(ham - ham.conj().T) > 1e-7 ).any():
+        if (np.abs(ham - ham.conj().T) > 1e-7).any():
             raise ValueError(
                 'Error in Green parameter. The Hamiltonian is not hermitian')
 
@@ -329,7 +330,7 @@ class ElGreen(Green):
         return
 
     def _spread_energy(self, energy):
-        "Distribute energy in leads"
+        """Distribute energy in leads"""
         for lead in self.leads:
             try:
                 getattr(lead, "energy")
@@ -354,14 +355,14 @@ class ElGreen(Green):
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
         sigma = np.asmatrix(
-            np.zeros((self.size, self.size), dtype=np.complex128))
+            np.zeros((self._size, self._size), dtype=np.complex128))
         esh = self.energy * self.over - self.ham
         self._add_leads(sigma, 'sigma_ret')
         ## Note: I add an imaginary part, to avoid problem if I have no
         ## leads. Anyway it is small respect to self energy. If you don't want
         ## it, set delta to 0.0 in constructor
         esh = esh - sigma + 1j*self.delta * self.over
-        self._green_ret = esh.I
+        self._green_ret = np.linalg.inv(esh)
 
         return self.green_ret
 
@@ -426,13 +427,13 @@ class PhGreen(Green):
     @frequency.setter
     def frequency(self, value):
         """Set energy point"""
-        if frequency != self.frequency:
-            self.frequency = value
+        if value != self._frequency:
+            self._frequency = value
             self.reset()
             self._spread_frequency(value)
 
     def _spread_frequency(self, frequency):
-        "Distribute energy in leads"
+        """Distribute energy in leads"""
         for lead in self.leads:
             try:
                 lead.set_frequency(frequency)
@@ -444,10 +445,10 @@ class PhGreen(Green):
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
-        esh = self.frequency * self.frequency * self.mass - self.spring
+        esh = self._frequency * self._frequency * self.mass - self.spring
         self._add_lead_sigma(esh)
         esh = esh + 1j*self.delta * self.over
-        self._green_ret = esh.I
+        self._green_ret = np.linalg.inv(esh)
 
         return self.green_ret
 
