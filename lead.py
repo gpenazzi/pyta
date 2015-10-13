@@ -132,8 +132,7 @@ class MRDephasing(Lead):
                  #Invar
                  green_ret=None,
                  green_lr=None,
-                 coupling=None,
-                 rotation=None):
+                 coupling=None):
         """Only the name and dephasing intensity needed at first.
         You can provide the equilibrium or the Keldysh Green's function
         to get the self energies using set_eqgreen() and set_neqgreen()
@@ -152,8 +151,6 @@ class MRDephasing(Lead):
         3) green_lr
         Reference lesser Green's function
         4) over
-        We may need to apply a rotation Sigma*rotation for consistency with
-        rotations
 
         internal:
         2) size
@@ -170,16 +167,11 @@ class MRDephasing(Lead):
         self._coupling = coupling
         self._green_ret = green_ret
         self._green_lr = green_lr
-        self._rotation = rotation
         #================================
 
         #Internal
-        self._has_rotation = False
         if self._coupling is not None:
             self._size = len(self.coupling)
-            if self._rotation is None:
-                self._rotation = np.eye(self._size)
-                self._has_rotation = True
 
         #Base constructors
         position = 0
@@ -198,20 +190,7 @@ class MRDephasing(Lead):
         self._sigma_lr = None
         self._coupling = value
         self._size = len(value)
-        self._rotation = np.eye(self._size)
         return
-
-    @property
-    def rotation(self):
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, value):
-        """
-         Set a transformation matrix (for non-orthogonal cases)
-        """
-        self._rotation = value
-        self._has_rotation = True
 
     @property
     def green_ret(self):
@@ -233,22 +212,10 @@ class MRDephasing(Lead):
 
     def _do_sigma_ret(self):
         """Calculate the retarded self energy"""
-        if self._has_rotation:
-            ## This implementation was equivalent to the one above using
-            ## rotation = overlap^1/2. I could not find out under which assumption,
-            ## it doesn't seem to be mathematically equivalent. However this last one
-            ## can be easily demonstrated to be correct
-            tmp = (self.rotation * self.green_ret * self.rotation).diagonal()
-            tmp2 = np.multiply(tmp, self.coupling)
-            tmp = np.asmatrix(np.eye(self._size), dtype=np.complex128)
-            np.fill_diagonal(tmp, tmp2)
-            self._sigma_ret = self.rotation * tmp * self.rotation
-
-        else:
-            tmp = np.asmatrix(np.eye(self._size), dtype=np.complex128)
-            np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(),
+        tmp = np.asmatrix(np.eye(self._size), dtype=np.complex128)
+        np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(),
                                               self._coupling))
-            self._sigma_ret = tmp
+        self._sigma_ret = tmp
         return
 
     def _do_sigma_gr(self):
@@ -450,14 +417,14 @@ class PhLead(Lead):
         #Interaction layer size tn x tm
         self.size = self.spring_t.shape[0]
         #Some checks
-        assert (type(spring) == np.matrixlib.defmatrix.matrix)
-        if mass:
-            assert (type(mass) == np.matrixlib.defmatrix.matrix)
+        #assert (type(spring) == np.matrixlib.defmatrix.matrix)
+        #if mass:
+        #    assert (type(mass) == np.matrixlib.defmatrix.matrix)
         #H must be a square matrix
         assert (self.spring.shape[0] == self.spring.shape[1])
         pl_size = self.spring.shape[0]
         if not mass:
-            self.mass = np.asmatrix(np.eye(pl_size))
+            self.mass = np.eye(pl_size)
         #======================================
 
         #Invar

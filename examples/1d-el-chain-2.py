@@ -34,25 +34,25 @@ t_pl = ham[0:2, 2:4]
 ham_dl = ham[0:2, 2:4]
 pos = 0
 left = pyta.lead.ElLead(pos, ham_pl, t_pl, ham_dl)
-left.set('mu', -2.0)
+left.mu = -2.0
 pos = n-2
 #Note: the convention in pyta is that ham_ld is passe, that's why
 #      we need this transpose here
 right = pyta.lead.ElLead(pos, ham_pl, t_pl.T, ham_dl.T)
-right.set('mu', 2.0)
+right.mu = 2.0
 
 #Add contacts to green solver
 leads = [left, right]
-green_solver.set('leads', leads)
+green_solver.leads = leads
 trans = np.zeros(en_points)
 loc_trans = np.zeros(en_points)
 self_real = np.zeros(en_points)
 self_imag = np.zeros(en_points)
 for ind, en in enumerate(energies):
-    green_solver.set('energy', en)
-    trans[ind] = green_solver.get('transmission')
-    self_real[ind] = right.get('sigma_ret').real[1,1]
-    self_imag[ind] = right.get('sigma_ret').imag[1,1]
+    green_solver.energy = en
+    trans[ind] = green_solver.transmission() 
+    self_real[ind] = right.sigma_ret[1,1]
+    self_imag[ind] = right.sigma_ret[1,1]
 
 print('transmission', trans)
 

@@ -99,8 +99,7 @@ class Green(solver.Solver):
         if self.green_lr is not None:
             self._green_gr = self.green_lr - 1j * self.spectral
         else:
-            sigma_gr = np.asmatrix(
-                np.zeros((self._size, self._size), dtype=np.complex128))
+            sigma_gr = np.zeros((self._size, self._size), dtype=np.complex128)
             self._add_leads(sigma_gr, "sigma_gr")
             gr = self.green_ret
             self._green_gr = np.dot(np.dot(gr, sigma_gr), gr.conj().T)
@@ -139,7 +138,7 @@ class Green(solver.Solver):
         """Resize a lead matrix in a matrix with the shape of the Green.
         Elements out of the lead are set to zero.
         Variable to be converted must be given as string."""
-        leadmat = lead.get(varname)
+        leadmat = getattr(lead, varname)
         vartype = np.result_type(leadmat)
         mat = np.zeros((self._size, self._size), dtype=vartype)
         leadsize = leadmat.shape[0]
@@ -215,9 +214,12 @@ class Green(solver.Solver):
     @property
     def occupation(self):
         """Calculate the occupation by comparing the lesser green function
-        and the spectral function. """
-        diag1 = self.green_lr
-        diag2 = self.spectral
+        and the spectral function.
+        Note: this is defined in a way which I think works only for orthogonal
+         basis
+        """
+        diag1 = np.diag(self.green_lr)
+        diag2 = np.diag(self.spectral)
         occupation = (np.imag(diag1 / diag2))
         return occupation
 
@@ -238,7 +240,7 @@ class Green(solver.Solver):
             raise AttributeError('Unknown mode: must be equilibrium or keldysh')
 
         #Initialize the virtual lead self-energy to zero
-        lead.set(green_varname, np.zeros((self._size, self._size)))
+        setattr(lead, green_varname, np.zeros((self._size, self._size)))
 
         def func1(var1):
             ## Note: var1 here is dummy because it is automatically retrievable
@@ -266,7 +268,7 @@ class ElGreen(Green):
     def __init__(self,
                  #Parameters
                  ham, over=None, delta=0.0):
-        """ElGreen is initialized by specifying an Hamiltonian as numpy.matrix.
+        """ElGreen is initialized by specifying an Hamiltonian as 2D numpy.ndarray.
         Optionally, overlap can be specified.
         If overlap is not specified, an orthogonal basis is assumed.
 
@@ -282,9 +284,9 @@ class ElGreen(Green):
 
         parameters:
         1)  ham
-            system hamiltonian, numpy.matrix
+            system hamiltonian, 2D numpy.ndarray
         2)  overlap (optional)
-            overlap matrix, real numpy.matrix
+            overlap matrix, real 2D numpy.ndarray
         3)  delta (optional)
             if no leads are present, it is used for shifting poles
 
@@ -304,7 +306,7 @@ class ElGreen(Green):
 
         size = len(self.ham)
         if over is None:
-            self.over = np.asmatrix(np.eye(size))
+            self.over = np.eye(size)
 
         self.delta = delta
         #Invar
@@ -349,13 +351,11 @@ class ElGreen(Green):
         over = self.over
         en = self.energy
         lc = np.real(np.multiply(2. * (ham - en * over), green_lr))
-        print('lc', lc[1, 2], 'energy ', en, 'gl', green_lr[1, :])
         return lc
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
-        sigma = np.asmatrix(
-            np.zeros((self._size, self._size), dtype=np.complex128))
+        sigma = np.zeros((self._size, self._size), dtype=np.complex128)
         esh = self.energy * self.over - self.ham
         self._add_leads(sigma, 'sigma_ret')
         ## Note: I add an imaginary part, to avoid problem if I have no
@@ -375,9 +375,9 @@ class PhGreen(Green):
                  #Param
                  spring, mass=None, delta=0.0):
         """PhGreen is initialized by specifying a coupling spring constant
-        matrix as numpy.matrix.
+        matrix as numpy.ndarray.
         Optionally, masses can be specified.
-        Masses must be specified as a diagonal numpy.matrix
+        Masses must be specified as a diagonal numpy.ndarray
         If masses are not specified, an identity matrix is assumed.
 
         See base class Green
@@ -392,9 +392,9 @@ class PhGreen(Green):
 
         parameters:
         1)  sprint
-            spring constants, numpy.matrix
+            spring constants, numpy.ndarray
         2)  mass (optional)
-            mass matrix, real numpy.matrix
+            mass matrix, real numpy.ndarray
 
         """
 
@@ -402,13 +402,13 @@ class PhGreen(Green):
         #=======================================
         self.spring = spring
         self.mass = mass
-        assert (type(spring) == np.matrixlib.defmatrix.matrix)
-        if not (mass is None):
-            assert (type(spring) == np.matrixlib.defmatrix.matrix)
+        #assert (type(spring) == np.matrixlib.defmatrix.matrix)
+        #if not (mass is None):
+        #    assert (type(spring) == np.matrixlib.defmatrix.matrix)
         self.spring = spring
         size = len(self.spring)
         if mass is None:
-            self.mass = np.asmatrix(np.eye(size))
+            self.mass = np.eye(size)
         #======================================
 
         #Invar
