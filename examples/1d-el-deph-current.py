@@ -50,8 +50,8 @@ pl_t = np.matrix([coupling_left])
 pl_ld = np.matrix([coupling_left])
 left = pyta.lead.ElLead(0, pl_ham_l, pl_t, pl_ld)
 t = 100.0 * pyta.consts.kb_eV__K
-left.set('temperature', t)
-left.set('mu', 0.0)
+left.temperature = t
+left.mu = 0.0
 ####################
 
 #Declare right lead
@@ -60,20 +60,20 @@ pl_t = np.matrix([coupling_right])
 pl_ld = np.matrix([coupling_right])
 right = pyta.lead.ElLead(n-1, pl_ham_r, pl_t, pl_ld)
 t = 100.0 * pyta.consts.kb_eV__K
-right.set('temperature', t)
-right.set('mu', 1.0)
+right.temperature = t
+right.mu = 1.0
 ###################
 
 #Declare virtual lead
 dephase_parameter = np.array(np.zeros(n))
 dephase_parameter[0:n] = 1e-20
 dephasing = pyta.lead.MRDephasing()
-dephasing.set('coupling', dephase_parameter)
+dephasing.coupling = dephase_parameter
 ######################
 
 # Declare Green's solver
 green_obj = pyta.green.ElGreen(ham)
-green_obj.set('leads', [left, right, dephasing])
+green_obj.leads = [left,right,dephasing] 
 ####################################
 
 curr = np.zeros(en_points)
@@ -81,13 +81,11 @@ total_current = 0.0
 
 # Energy loop
 for ind, ener in enumerate(en):
-    green_obj.set('energy', ener)
+    green_obj.energy = ener
     #SCBA loop
     green_obj.scba(dephasing,mode='equilibrium',niter=1)
     green_obj.scba(dephasing,mode='keldysh',niter=1)
-    #scba = pyta.green.SCBA(green_obj, dephasing, tol = scba_tol, maxiter=scba_steps, task='both')
-    #scba.solve()
-    curr[ind] = green_obj.get('meirwingreen', lead=left)
+    curr[ind] = green_obj.meirwingreen(lead=left)
     total_current += curr[ind] * step
 
 #Plot the results

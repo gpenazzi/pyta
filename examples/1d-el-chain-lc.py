@@ -32,32 +32,29 @@ green_solver = pyta.green.ElGreen(ham)
 ham_pl = ham[0:2,0:2]
 t_pl = ham[0:2, 2:4]
 ham_dl = ham[0:2, 2:4]
-print('hams', ham_pl, t_pl, ham)
 pos = 0
 left = pyta.lead.ElLead(pos, ham_pl, t_pl, ham_dl)
-left.set('mu', -2.0)
+left.mu = -2.0
 pos = n-2
 #Note: this pl, dl ordering is somewhat the opposite of what I thought
 right = pyta.lead.ElLead(pos, ham_pl, t_pl.T, ham_dl.T)
-right.set('mu', 2.0)
+right.mu = 2.0
 
 #Add contacts to green solver
 leads = [left, right]
-green_solver.set('leads', leads)
+green_solver.leads = leads
 trans = np.zeros(en_points)
 loc_trans = np.zeros(en_points)
 self_real = np.zeros(en_points)
 self_imag = np.zeros(en_points)
 for ind, en in enumerate(energies):
-    green_solver.set('energy', en)
-    trans[ind] = green_solver.get('transmission')
-    loc_trans[ind] = np.real(np.sum(green_solver.get_local_currents()[0,:]))
-    loc_trans[ind] += np.real(np.sum(green_solver.get_local_currents()[1,:]))
-    loc_trans[ind] += np.real(np.sum(green_solver.get_local_currents()[2,:]))
-    self_real[ind] = right.get('sigma_ret').real[1,1]
-    self_imag[ind] = right.get('sigma_ret').imag[1,1]
-
-print('transmission', trans)
+    green_solver.energy = en
+    trans[ind] = green_solver.transmission() 
+    loc_trans[ind] = np.real(np.sum(green_solver.local_currents[0,:]))
+    loc_trans[ind] += np.real(np.sum(green_solver.local_currents[1,:]))
+    loc_trans[ind] += np.real(np.sum(green_solver.local_currents[2,:]))
+    self_real[ind] = right.sigma_ret[1,1]
+    self_imag[ind] = right.sigma_ret[1,1]
 
 plt.plot(energies, self_real)
 plt.title('Real part of Self Energy')
@@ -67,7 +64,6 @@ plt.title('Imaginary part of Self Energy')
 plt.show()
 plt.plot(energies, trans, label='Caroli')
 plt.plot(energies, loc_trans, label='Energy resolved local flux')
-plt.savefig('2nd_0_30.png')
 plt.legend()
 plt.title('Transmission and local transmissione')
 plt.show()
