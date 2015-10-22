@@ -139,7 +139,7 @@ class Green(solver.Solver):
         """Resize a lead matrix in a matrix with the shape of the Green.
         Elements out of the lead are set to zero.
         Variable to be converted must be given as string."""
-        leadmat = lead.get(varname)
+        leadmat = getattr(lead, varname)
         vartype = np.result_type(leadmat)
         mat = np.zeros((self._size, self._size), dtype=vartype)
         leadsize = leadmat.shape[0]
@@ -238,7 +238,7 @@ class Green(solver.Solver):
             raise AttributeError('Unknown mode: must be equilibrium or keldysh')
 
         #Initialize the virtual lead self-energy to zero
-        lead.set(green_varname, np.zeros((self._size, self._size)))
+        setattr(lead, green_varname, np.zeros((self._size, self._size)))
 
         def func1(var1):
             ## Note: var1 here is dummy because it is automatically retrievable

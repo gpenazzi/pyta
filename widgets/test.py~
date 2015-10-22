@@ -1,0 +1,23 @@
+"""
+A small example of GUI integrated with matplotlib.
+Some snippets from a demo by Eli Bendersky 
+github/eliben/code-for-blog
+
+"""
+
+import sys, os, random
+from PyQt4 import QtCore
+from PyQt4 import QtGui
+import matplotlib
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
+from matplotlib.figure import Figure
+
+class FuncGui(QtGui.QMainWindow):
+  def __init__(self, parent=None):
+    QtGui.QMainWindow.__init__(self, parent)
+    self.setWindowTitle('GUI Test: plot a function')
+    self.create_menu()
+    self.create_main_frame()
+    self.create_status_bar()
+    

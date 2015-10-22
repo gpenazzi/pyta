@@ -41,7 +41,6 @@ def linear_mixer(func1, func2, var1_guess, alpha=1.0,
             var1_nplus1 = (1 - alpha) * var1_n + alpha * func1(var2_n)
             var2_nplus1 = func2(var1_nplus1)
             error = np.amax(np.absolute(var1_n - var1_nplus1))
-            print('error',error)
             var1_n = var1_nplus1
             var2_n = var2_nplus1
         return var1_n, var2_n
@@ -51,7 +50,6 @@ def linear_mixer(func1, func2, var1_guess, alpha=1.0,
             var1_nplus1 = (1 - alpha) * var1_n + alpha * func1(var2_n)
             var2_nplus1 = func2(var1_nplus1)
             error = np.amax(np.absolute(var1_n - var1_nplus1))
-            print('error',error)
             if error < tolerance:
                 return var1_n, var2_n
             var1_n = var1_nplus1

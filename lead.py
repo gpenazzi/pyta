@@ -623,6 +623,18 @@ class ElWideBand(Lead):
             self._sigma_gr = None
         return
 
+    @property
+    def mu(self):
+        return self._mu
+
+    @mu.setter
+    def mu(self, value):
+        """Set a chemical potential, for nonequilibrium self energy"""
+        self._mu = value
+        self._sigma_gr = None
+        self._sigma_lr = None
+        return
+    
     def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
         z = self.energy
@@ -676,7 +688,7 @@ class ElWideBandGamma(Lead):
         self._coupling = coupling
 
         #Set defaults
-        self._size = size
+        self.size = size
         #===========================================================
 
         #Invar
@@ -715,9 +727,21 @@ class ElWideBandGamma(Lead):
             self._sigma_gr = None
         return
 
+    @property
+    def mu(self):
+        return self._mu
+
+    @mu.setter
+    def mu(self, value):
+        """Set a chemical potential, for nonequilibrium self energy"""
+        self._mu = value
+        self._sigma_gr = None
+        self._sigma_lr = None
+        return
+    
     def _do_sigma_ret(self):
         """Calculate the equilibrium retarded self energy \Sigma^{r}."""
-        gamma = np.zeros((self._size, self._size), dtype=np.complex128)
+        gamma = np.zeros((self.size, self.size), dtype=np.complex128)
         np.fill_diagonal(gamma, self._coupling)
         self._sigma_ret = 1j * gamma / 2.
         return
