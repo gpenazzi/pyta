@@ -133,9 +133,11 @@ class MRDephasing(Lead):
                  green_ret=None,
                  green_lr=None,
                  coupling=None):
-        """Only the name and dephasing intensity needed at first.
-        You can provide the equilibrium or the Keldysh Green's function
-        to get the self energies using set_eqgreen() and set_neqgreen()
+        """
+        Only the name and dephasing intensity needed at first.
+        You have to provide the equilibrium and the Keldysh Green's function.
+
+        Note: if the coupling is
 
         outvar:
         1) sigma_ret
@@ -145,7 +147,7 @@ class MRDephasing(Lead):
 
         invar:
         1) deph
-        dephasing parameter (numpy.array, float)
+        dephasing parameter (numpy.array)
         2) green_ret
         Reference retarded Green's function
         3) green_lr
@@ -232,6 +234,124 @@ class MRDephasing(Lead):
                                           self.coupling))
         self._sigma_lr = tmp
         return
+
+
+class MRDephasingClose(Lead):
+    """
+    A virtual Lead modelling Momentum relaxing dephasing. It assume a
+    constant coupling and evaluate the lesser through a close form equation.
+    See Cresti, J.Phys.Cond.Matter. 18 (2006) 10059 for more details.
+    """
+
+    def __init__(self,
+                 #Invar
+                 green_ret=None,
+                 sigma_lr_leads=None,
+                 coupling=None):
+        """
+        Only the name and dephasing intensity needed at first.
+        You have to provide the equilibrium and the Keldysh Green's function.
+
+        Note: if the coupling is
+
+        outvar:
+        1) sigma_ret
+        2) sigma_gr
+        3) sigma_lr
+        4) gamma
+
+        invar:
+        1) coupling
+        dephasing parameter (float)
+        2) green_ret
+        Reference retarded Green's function
+        3) sigma_lr_leads
+        Lead only self energy of the system
+
+        internal:
+        2) size
+        index of system to be attached to
+
+        """
+
+        #Param
+        #================================
+        #================================
+
+        #Invar
+        #================================
+        self._coupling = coupling
+        self._green_ret = green_ret
+        self._sigma_lr_leads = sigma_lr_leads
+        #================================
+
+        #Internal
+        if self._green_ret is not None:
+            self._size = self._green_ret.shape[0]
+
+        #Base constructors
+        position = 0
+        super(MRDephasingClose, self).__init__(position)
+
+    @property
+    def coupling(self):
+        return self._coupling
+
+    @coupling.setter
+    def coupling(self, value):
+        """Set a new dephasing parameter"""
+        assert (type(value) == float)
+        self._sigma_ret = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+        self._coupling = value
+        return
+
+    @property
+    def green_ret(self):
+        return self._green_ret
+
+    @green_ret.setter
+    def green_ret(self, value):
+        self._sigma_ret = None
+        self._size = value.shape[0]
+        self._green_ret = value
+
+    @property
+    def sigma_lr_leads(self):
+        return self._sigma_lr_leads
+
+    @sigma_lr_leads.setter
+    def sigma_lr_leads(self, value):
+        self._sigma_lr = None
+        self._sigma_lr_leads = value
+
+    def _do_sigma_ret(self):
+        """Calculate the retarded self energy"""
+        tmp = np.asmatrix(np.eye(self._size), dtype=np.complex128)
+        np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(),
+                                          self._coupling))
+        self._sigma_ret = tmp
+        return
+
+    def _do_sigma_gr(self):
+        """Calculate the retarded self energy"""
+        gamma = self.gamma
+        sigma_lr = self.sigma_lr
+        self._sigma_gr = sigma_lr - 1j * gamma
+        return
+
+    def _do_sigma_lr(self):
+        """Calculate the retarded self energy"""
+        q_mat = np.multiply(self._green_ret, self.green_ret.conj())
+        tmp1 = self._coupling * np.linalg.inv(
+            np.eye(self._size) - self._coupling * q_mat)
+        tmp2 = np.dot(np.dot(self._green_ret, self._sigma_lr_leads),
+                      self._green_ret.conj().T)
+        self._sigma_lr = np.zeros(shape=(self._size, self._size),dtype=np.complex128)
+        np.fill_diagonal(self._sigma_lr, np.dot(tmp1, np.diag(tmp2)))
+        return
+
 
 
 class ElLead(Lead):
