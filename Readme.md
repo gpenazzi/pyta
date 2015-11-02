@@ -16,31 +16,21 @@ You can find simple examples of usage in examples/
 Coding Philosophy
 =========
 Pyta relies heavily on object oriented programming, with a philosophy close to top-down dynamic programming.
-The main goal of Pyta is helping the user to avoid the pain of refresh/rerun specific parts of calculation when some input variables is changed. To achieve this goal, a specific set of operations (some kind of 'model' if you like) are wrapped in classes, called Solvers. Every solver apply a JIT (Just In Time) execution phylosophy, i.e. a calculation is run when is needed to provide a specific output quantity. Some quantities are always calculated on the fly (typically post-processing quantities) while some other are stored unless the Solver input doesn''t make them obsolete. In this way it 'should' (see below) e ensured that the output is usually consistent with the input. 
 
-In order to achieve this result, we need to heavily rely on data encapsulation, i.e. everything goes through setters and getters. I do realize that this is not really pythonic, and to some extent properties may be used succesfully. However, I don''t like the idea of breaking consistency between getter which accept arguments (only implemented as method) and getters which don''t (which may be implemented as properties). However I admit that I am not still sure about this point, therefore this may change in the near future.
+Pyta does not aim to be a tool used for production run (not yet), no focus on performance is given. It is rather a tool useful to implement prototypes of quantum transport algorithms and to implement them quickly. To this end, it tries to avoid the pain of refresh/rerun specific parts of calculation when some input variables is changed. In the most recent version, this is achieved by a logical separation of input variables (mutable during the lifetime of the instance), input parameters (immutable during the lifetime of the instance) and output variables. Every solver apply a JIT (Just In Time) execution phylosophy, i.e. a calculation is run when is needed to provide a specific output quantity. Therefore the output variables are encapsulated in properties, invoking the calculation when necessary, and the input variables are also encapsulated in properties, resetting the output variables when needed. The solvers may contain output methods when arguments are needed (e.g. green.transmission(leads=(initial,final)). 
 
-Of course JIT execution may impact performance, therefore it should be clear that Pyta is born for algorithm prototyping, not as production code. 
+In previous versions I implemented this via set/get methods, however I quickly realizaed that those are not really needed and can be easily substituted by properties, resulting in more readable code. 
 
-Every Solver is derived by the base class, which provides two fundamental acces point: set() and get()
-Intuitively, set() is used to pass input information, and get() to retrieve output. 
-The base class implements a general set/get method which works in most cases. set/get are driven by specifying the appropriate class member names. Example
-
-> stress=solver.get('stress')  #Return the quantity stress from the solver
-> solver.set('stiffness_constants', some_matrix)  #Set stiffness constants
-
-If you are not a fan of this JIT philosophy, you can still use the classes in a procedural way: the operations to be run are set in a quite strict way so that you could reimplement some steps. 
+In general, the idea you will not need to explicitely run the calculation (you can still do it via private methods, if you like). It is left to the internal machinery wheter the actual calculation is invoked in initialization, or just in time.
 
 
 
 Is the coding philosophy respected all over?
 =============================
-No, it is not. Of course the separation between a Solver and a normal function is arbitrary. Moreover, the design principle behind the JIT philosophy may be too strict and do not always work. An example is mixer or SCC loops, which needs to be explicitely invoked (for example, Born Approximation).
+Not completely. A trivial problem is that the scheme above is completely consistent if the input quantities are immutable types, so that we can be sure that once the output variables are calculated, they will stay consistent with the input ones. Even though this would enable a philosophy closer to a functional paradigma (input/output conistency independent on instance internal state), we would loose the flexibility of OO. Therefore I don't do anything to force a choice rather than another. The only thing which is assumed is a JIT logic. 
 
-Up to now I am allowing objects as input types, therefore it is clear that this may give two problems:
-
-1) We can end up in some recursive definition. Avoiding it is demanded to the developer. 
-2) The consistency between input and output can not be always ensured because the output of a solver should depend on the sate of an input object. However I think that managin this point is too cumbersome, therefore sometimes you may still need some manual refresh (again, an example in the current implementation is electron phonon self energy)
+A JIT implementation is not trivial in the case of SCC loops, as it may lead to recursion and I consider it undesirable. However, there may be some temporary solution based on explicit calls rather than JIT. One example is now the Self Consitent Born Approximation, which has to be explicitely invoked (yet). 
+tion is electron phonon self energy)
  
 
 Pyta is terrible, what else can I use?

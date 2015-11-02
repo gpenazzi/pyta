@@ -39,7 +39,7 @@ right = pyta.lead.ElLead(pos, ham_pl, t_pl, ham_dl)
 
 #Add contacts to green solver
 leads = [left, right]
-green_solver.set_leads(leads)
+green_solver.leads = leads
 trans = np.zeros(en_points)
 self_real = np.zeros(en_points)
 self_imag = np.zeros(en_points)
