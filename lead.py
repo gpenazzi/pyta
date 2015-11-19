@@ -4,18 +4,6 @@ import pyta.defaults as defaults
 import pyta.dist as dist
 import pyta.consts as consts
 
-#I use this function to decorate matrices
-#def resize_matrix(n, pos, mat):
-#    """Resize mat as nxn matrix but include the matrix mat starting from position pos"""
-#    if mat.shape == (n, n):
-#        return mat
-#    else:
-#        assert(mat.shape[0] == mat.shape[1])
-#        size = mat.shape[0]
-#        tmp = np.matrix(np.zeros((n, n)), dtype=mat.dtype)
-#        tmp[pos:pos + size, pos:pos + size] = mat[:, :]
-#        return tmp
-
 
 class Lead(solver.Solver):
     """ Abstract Class.
@@ -300,7 +288,6 @@ class MRDephasingClose(Lead):
     @coupling.setter
     def coupling(self, value):
         """Set a new dephasing parameter"""
-        assert (type(value) == float)
         self._sigma_ret = None
         self._sigma_gr = None
         self._sigma_lr = None
@@ -314,6 +301,8 @@ class MRDephasingClose(Lead):
     @green_ret.setter
     def green_ret(self, value):
         self._sigma_ret = None
+        self._sigma_lr = None
+        self._sigma_gr = None
         self._size = value.shape[0]
         self._green_ret = value
 
@@ -324,6 +313,7 @@ class MRDephasingClose(Lead):
     @sigma_lr_leads.setter
     def sigma_lr_leads(self, value):
         self._sigma_lr = None
+        self._sigma_gr = None
         self._sigma_lr_leads = value
 
     def _do_sigma_ret(self):
@@ -343,12 +333,13 @@ class MRDephasingClose(Lead):
 
     def _do_sigma_lr(self):
         """Calculate the retarded self energy"""
-        q_mat = np.multiply(self._green_ret, self.green_ret.conj())
+        q_mat = np.multiply(self._green_ret, self.green_ret.conj().T)
         tmp1 = self._coupling * np.linalg.inv(
             np.eye(self._size) - self._coupling * q_mat)
         tmp2 = np.dot(np.dot(self._green_ret, self._sigma_lr_leads),
                       self._green_ret.conj().T)
-        self._sigma_lr = np.zeros(shape=(self._size, self._size),dtype=np.complex128)
+        self._sigma_lr = np.zeros(shape=(self._size, self._size),
+                                  dtype=np.complex128)
         np.fill_diagonal(self._sigma_lr, np.dot(tmp1, np.diag(tmp2)))
         return
 

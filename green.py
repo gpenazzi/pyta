@@ -114,9 +114,6 @@ class Green(solver.Solver):
         self._green_lr = np.dot(np.dot(green_ret, sigma_lr), green_ret.conj().T)
         return
 
-    def set_leads(self, leads):
-        self.leads = leads
-
     @property
     def spectral(self):
         """Get spectral function A = j(G^{r} - G^{a})"""
@@ -198,6 +195,7 @@ class Green(solver.Solver):
         Args:
             lead (Lead): reference lead where the current is evaluated
                 equation
+
         Returns:
             float: value of current in given energy point
         """
@@ -206,7 +204,8 @@ class Green(solver.Solver):
         sigma_n = -1.0j * self._resize_lead_matrix(lead, 'sigma_lr')
         gamma = self._resize_lead_matrix(lead, 'gamma')
         spectral = self.spectral
-        current = ((pyta.consts.e / pyta.consts.h_eVs) *
+        const = 1.0
+        current = (const *
                    np.trace(np.dot(sigma_n, spectral) -
                             np.dot(gamma, green_n)))
         return current

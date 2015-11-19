@@ -51,7 +51,36 @@ def linear_mixer(func1, func2, var1_guess, alpha=1.0,
             var2_nplus1 = func2(var1_nplus1)
             error = np.amax(np.absolute(var1_n - var1_nplus1))
             if error < tolerance:
+                print('SCBA Iterations: {}'.format(ii))
                 return var1_n, var2_n
             var1_n = var1_nplus1
             var2_n = var2_nplus1
         raise RuntimeError('Linear Mixer did not converge below tolerance')
+
+
+#I use this function to decorate matrices
+def resize_matrix(n, pos, mat, dtype=None):
+    """
+    Resize mat as nxn matrix but include the matrix mat starting from
+    position pos
+
+    Args:
+        n (integer): target size of nxn matrix
+        pos (integer): starting index in target matrix
+        mat (mxm numpy.ndarray): matrix to be decorated
+        dtype: force an output type
+
+    Returns:
+        out (nxn numpy.ndarray): output matrix decorated with zeros
+    """
+    if dtype is None:
+        dtype = mat.dtype
+    if mat.shape == (n, n):
+        return mat
+    else:
+        assert(mat.shape[0] == mat.shape[1])
+        size = mat.shape[0]
+        tmp = np.matrix(np.zeros((n, n)), dtype=dtype)
+        tmp[pos:pos + size, pos:pos + size] = mat[:, :]
+        return tmp
+
