@@ -1,3 +1,6 @@
+"""
+Contains classes to calculate Self Energies
+"""
 import numpy as np
 from pyta import solver
 import pyta.defaults as defaults
@@ -6,8 +9,10 @@ import pyta.consts as consts
 
 
 class Lead(solver.Solver):
-    """ Abstract Class.
-        A base class for managing and building up real and virtual leads. """
+    """
+    Abstract Class.
+    A base class for managing and building up real and virtual leads.
+    """
 
     def __init__(self,
                  #Param
@@ -57,19 +62,29 @@ class Lead(solver.Solver):
 
     @property
     def position(self):
+        """
+        Return:
+        position (int): first index where the system interact with the self
+                energy or, equivalently, the index where self energies are
+                plugged
+        """
         return self._position
 
     @property
     def gamma(self):
-        "Return \Gamma=j(\Sigma^{r} - \Sigma^{a})"""
+        """
+        Return \Gamma=j(\Sigma^{r} - \Sigma^{a})
+        """
         sigma = self.sigma_ret
         gamma = 1.j * (sigma - sigma.conj().T)
         return gamma
 
     @property
     def occupation(self):
-        """Calculate the occupation by comparing the lesser green function
-        and the spectral function. """
+        """
+        Calculate the occupation by comparing the lesser green function
+        and the spectral function.
+        """
         diag1 = np.diag(self.sigma_lr)
         diag2 = np.diag(self.gamma)
         occupation = np.imag(np.divide(diag1, diag2))
@@ -77,18 +92,27 @@ class Lead(solver.Solver):
 
     @property
     def sigma_ret(self):
+        """
+        Output variable getter. See class doc.
+        """
         if self._sigma_ret is None:
             self._do_sigma_ret()
         return self._sigma_ret
 
     @property
     def sigma_gr(self):
+        """
+        Output variable getter. See class doc.
+        """
         if self._sigma_gr is None:
             self._do_sigma_gr()
         return self._sigma_gr
 
     @property
     def sigma_lr(self):
+        """
+        Output variable getter. See class doc.
+        """
         if self._sigma_lr is None:
             self._do_sigma_lr()
         return self._sigma_lr
@@ -104,12 +128,21 @@ class Lead(solver.Solver):
 
     # Virtual classes
     def _do_sigma_ret(self):
+        """
+        Virtual class method
+        """
         raise NotImplementedError()
 
     def _do_sigma_gr(self):
+        """
+        Virtual class method
+        """
         raise NotImplementedError()
 
     def _do_sigma_lr(self):
+        """
+        Virtual class method
+        """
         raise NotImplementedError()
 
 
@@ -169,12 +202,16 @@ class MRDephasing(Lead):
 
     @property
     def coupling(self):
+        """
+        Returns:
+            coupling ()
+        """
         return self._coupling
 
     @coupling.setter
     def coupling(self, value):
         """Set a new dephasing parameter"""
-        assert (type(value) == np.ndarray)
+        assert type(value) == np.ndarray
         self._sigma_ret = None
         self._sigma_gr = None
         self._sigma_lr = None
@@ -184,39 +221,65 @@ class MRDephasing(Lead):
 
     @property
     def green_ret(self):
+        """
+        Returns:
+            green_ret (numpy.ndarray): green retarded used to build the self
+                energy
+        """
         return self._green_ret
 
     @green_ret.setter
     def green_ret(self, value):
+        """
+        Args:
+            green_ret (numpy.ndarray): set the retarded green function used to
+                build the self energy
+        """
         self._sigma_ret = None
         self._green_ret = value
 
     @property
     def green_lr(self):
+        """
+        Returns:
+            green_ret (numpy.ndarray): green retarded used to build the self
+                energy
+        """
         return self._green_lr
 
     @green_lr.setter
     def green_lr(self, value):
+        """
+        Args:
+            green_lr (numpy.ndarray): set the lesser green function used to
+                build the self energy
+        """
         self._sigma_lr = None
         self._green_lr = value
 
     def _do_sigma_ret(self):
-        """Calculate the retarded self energy"""
+        """
+        Calculate the retarded self energy
+        """
         tmp = np.asmatrix(np.eye(self._size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(),
-                                              self._coupling))
+                                          self._coupling))
         self._sigma_ret = tmp
         return
 
     def _do_sigma_gr(self):
-        """Calculate the retarded self energy"""
+        """
+        Calculate the greater self energy
+        """
         gamma = self.gamma
         sigma_lr = self.sigma_lr
         self._sigma_gr = sigma_lr - 1j * gamma
         return
 
     def _do_sigma_lr(self):
-        """Calculate the retarded self energy"""
+        """
+        Calculate the lesser self energy
+        """
         tmp = np.asmatrix(np.eye(self._size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(self.green_lr.diagonal(),
                                           self.coupling))
@@ -283,11 +346,16 @@ class MRDephasingClose(Lead):
 
     @property
     def coupling(self):
+        """
+        Input variable getter. See class doc
+        """
         return self._coupling
 
     @coupling.setter
     def coupling(self, value):
-        """Set a new dephasing parameter"""
+        """
+        Input variable getter. See class doc.
+        """
         self._sigma_ret = None
         self._sigma_gr = None
         self._sigma_lr = None
@@ -296,10 +364,16 @@ class MRDephasingClose(Lead):
 
     @property
     def green_ret(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._green_ret
 
     @green_ret.setter
     def green_ret(self, value):
+        """
+        Input variable setter. See class doc.
+        """
         self._sigma_ret = None
         self._sigma_lr = None
         self._sigma_gr = None
@@ -308,16 +382,24 @@ class MRDephasingClose(Lead):
 
     @property
     def sigma_lr_leads(self):
+        """
+        Input variable setter. See class doc.
+        """
         return self._sigma_lr_leads
 
     @sigma_lr_leads.setter
     def sigma_lr_leads(self, value):
+        """
+        Input variable setter. See class doc.
+        """
         self._sigma_lr = None
         self._sigma_gr = None
         self._sigma_lr_leads = value
 
     def _do_sigma_ret(self):
-        """Calculate the retarded self energy"""
+        """
+        Calculate the retarded self energy
+        """
         tmp = np.asmatrix(np.eye(self._size), dtype=np.complex128)
         np.fill_diagonal(tmp, np.multiply(self.green_ret.diagonal(),
                                           self._coupling))
@@ -325,14 +407,18 @@ class MRDephasingClose(Lead):
         return
 
     def _do_sigma_gr(self):
-        """Calculate the retarded self energy"""
+        """
+        Calculate the greater self energy
+        """
         gamma = self.gamma
         sigma_lr = self.sigma_lr
         self._sigma_gr = sigma_lr - 1j * gamma
         return
 
     def _do_sigma_lr(self):
-        """Calculate the retarded self energy"""
+        """
+        Calculate the lesser self energy
+        """
         q_mat = np.multiply(self._green_ret, self.green_ret.conj().T)
         tmp1 = self._coupling * np.linalg.inv(
             np.eye(self._size) - self._coupling * q_mat)
@@ -346,8 +432,10 @@ class MRDephasingClose(Lead):
 
 
 class ElLead(Lead):
-    """A class derived from Lead for the description of electron bath, in
-    the case of Fermion Green's functions"""
+    """
+    A class derived from Lead for the description of electron bath, in
+    the case of Fermion Green's functions.
+    """
 
     def __init__(self,
                  #Param
@@ -381,7 +469,7 @@ class ElLead(Lead):
         4) gamma
 
         We always mean by convention the
-        coupling device-contact, i.e. Hcd 
+        coupling device-contact, i.e. Hcd
         For the contact we specify coupling between first and second layer, i.e.
         H10 (same for the overlap, if any)"""
 
@@ -421,11 +509,16 @@ class ElLead(Lead):
 
     @property
     def temperature(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._temperature
 
     @temperature.setter
     def temperature(self, value):
-        """Set temperature, for non equilibrium self energy"""
+        """
+        Input variable setter. See class doc.
+        """
         self._temperature = value
         self._sigma_gr = None
         self._sigma_lr = None
@@ -433,11 +526,16 @@ class ElLead(Lead):
 
     @property
     def energy(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._energy
 
     @energy.setter
     def energy(self, value):
-        """Set energy point"""
+        """
+        Input variable setter. See class doc.
+        """
         if value != self._energy:
             self._energy = value
             self._sigma_ret = None
@@ -447,24 +545,31 @@ class ElLead(Lead):
 
     @property
     def mu(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._mu
 
     @mu.setter
     def mu(self, value):
-        """Set a chemical potential, for nonequilibrium self energy"""
+        """
+        Input variable setter. See class doc.
+        """
         self._mu = value
         self._sigma_gr = None
         self._sigma_lr = None
         return
 
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
-        """Calculate the INVERSE of surface green's function
+        """
+        Calculate the INVERSE of surface green's function
         by means of decimation
         algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
         two-dimensional Hamiltonian at surfacesPhys. Rev.B 28 4397.
         This implementation follows Lopez-Sancho
 
-        Note: modified from ASE implementation"""
+        Credit: modified from ASE implementation
+        """
 
         z = self._energy + self._delta * 1j
         #TODO: Verify this!!
@@ -486,7 +591,9 @@ class ElLead(Lead):
         return d_00
 
     def _do_sigma_ret(self):
-        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        """
+        Calculate the equilibrium retarded self energy \Sigma^{r}.
+        """
         z = self._energy
         tau_ld = z * self.over_ld - self.ham_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
@@ -494,15 +601,19 @@ class ElLead(Lead):
         self._sigma_ret = np.dot(tau_dl, a_ld)
 
     def _do_sigma_lr(self):
-        """Calculate the Sigma lesser"""
-        assert (not self.mu is None)
+        """
+        Calculate the Sigma lesser
+        """
+        assert not self.mu is None
         self._sigma_lr = (
             dist.fermi(self._energy, self.mu, temppot=self._temperature) *
             1j * self.gamma)
 
     def _do_sigma_gr(self):
-        """Calculate the Sigma lesser"""
-        assert (not self.mu is None)
+        """
+        Calculate the Sigma lesser
+        """
+        assert not self.mu is None
         self._sigma_gr = (
             (dist.fermi(self.energy, self.mu, temppot=self.temperature)
              - 1.0) * 1j * self.gamma)
@@ -510,7 +621,9 @@ class ElLead(Lead):
 
 # noinspection PyArgumentList
 class PhLead(Lead):
-    """A class derived from Lead for the description of phonon lead"""
+    """
+    A class derived from Lead for the description of phonon lead
+    """
 
     def __init__(self,
                  #Param
@@ -532,7 +645,7 @@ class PhLead(Lead):
         #if mass:
         #    assert (type(mass) == np.matrixlib.defmatrix.matrix)
         #H must be a square matrix
-        assert (self.spring.shape[0] == self.spring.shape[1])
+        assert self.spring.shape[0] == self.spring.shape[1]
         pl_size = self.spring.shape[0]
         if not mass:
             self.mass = np.eye(pl_size)
@@ -551,11 +664,16 @@ class PhLead(Lead):
 
     @property
     def temperature(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._temperature
 
     @temperature.setter
     def temperature(self, value):
-        """Set temperature, for non equilibrium self energy"""
+        """
+        Input variable setter. See class doc.
+        """
         self._temperature = value
         self._sigma_gr = None
         self._sigma_lr = None
@@ -563,11 +681,16 @@ class PhLead(Lead):
 
     @property
     def frequency(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._frequency
 
     @frequency.setter
     def frequency(self, value):
-        """Set frequency point"""
+        """
+        Input variable setter. See class doc.
+        """
         if value != self._frequency:
             self._frequency = value
             self._sigma_ret = None
@@ -576,15 +699,16 @@ class PhLead(Lead):
         return
 
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
-        """Calculate the INVERSE of surface green's function
+        """
+        Calculate the INVERSE of surface green's function
         by means of decimation
         algorithm Guinea F, Tejedor C, Flores F and Louis E 1983 Effective
         two-dimensional Hamiltonian at surfacesPhys. Rev.B 28 4397.
 
-        Note: from ASE implementation
-        slightly adapted for phonons
-        
-        Note: frequencies are given in fs^-1, energies in eV"""
+        Credit: from ASE implementation slightly adapted for phonons
+
+        Note: frequencies are given in fs^-1, energies in eV
+        """
 
         z = self.frequency * self.frequency + self.delta * 1j
         #TODO: Verify this!!
@@ -606,7 +730,9 @@ class PhLead(Lead):
         return d_00
 
     def _do_sigma_ret(self):
-        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        """
+        Calculate the equilibrium retarded self energy \Sigma^{r}.
+        """
         tau_ld = self.spring_ld
         a_ld = np.linalg.solve(self._do_invsurfgreen(), tau_ld)
         tau_dl = self.spring_ld.conj().T
@@ -614,23 +740,29 @@ class PhLead(Lead):
         return
 
     def _do_sigma_lr(self):
-        """Calculate the Sigma lesser"""
+        """
+        Calculate the Sigma lesser
+        """
         energy = self._frequency * consts.hbar_eV_fs
         self._sigma_lr = ((dist.bose(energy, temppot=self._temperature)) *
-                         (-1j) * self.gamma)
+                          (-1j) * self.gamma)
         return
 
     def _do_sigma_gr(self):
-        """Calculate the Sigma lesser"""
+        """
+        Calculate the Sigma lesser
+        """
         energy = self._frequency * consts.hbar_eV_fs
-        self._sigma_gr = ((dist.bose(energy, temppot=self._temperature)
-                          + 1.0) * (-1j) * self.gamma)
+        self._sigma_gr = ((dist.bose(energy, temppot=self._temperature) +
+                           1.0) * (-1j) * self.gamma)
         return
 
 
 class ElWideBand(Lead):
-    """A class derived from Lead for the description of physical contacts, in
-    the case of Fermion Green's functions"""
+    """
+    A class derived from Lead for the description of physical contacts, in
+    the case of Fermion Green's functions
+    """
 
     def __init__(self,
                  #Param
@@ -647,7 +779,7 @@ class ElWideBand(Lead):
         mu (float): chemical potential
 
         We always mean by convention the
-        coupling device-contact, i.e. Hcd 
+        coupling device-contact, i.e. Hcd
         For the contact we specify coupling between first and second layer, i.e.
         H10 (same for the overlap, if any)"""
 
@@ -677,11 +809,16 @@ class ElWideBand(Lead):
 
     @property
     def temperature(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._temperature
 
     @temperature.setter
     def temperature(self, value):
-        """Set temperature, for non equilibrium self energy"""
+        """
+        Input variable setter. See class doc.
+        """
         self._temperature = value
         self._sigma_gr = None
         self._sigma_lr = None
@@ -689,11 +826,16 @@ class ElWideBand(Lead):
 
     @property
     def energy(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._energy
 
     @energy.setter
     def energy(self, value):
-        """Set energy point"""
+        """
+        Input variable setter. See class doc.
+        """
         if value != self._energy:
             self._energy = value
             self._sigma_ret = None
@@ -703,18 +845,25 @@ class ElWideBand(Lead):
 
     @property
     def mu(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._mu
 
     @mu.setter
     def mu(self, value):
-        """Set a chemical potential, for nonequilibrium self energy"""
+        """
+        Input variable setter. See class doc.
+        """
         self._mu = value
         self._sigma_gr = None
         self._sigma_lr = None
         return
-    
+
     def _do_sigma_ret(self):
-        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        """
+        Calculate the equilibrium retarded self energy \Sigma^{r}.
+        """
         z = self.energy
         dos_mat = np.zeros((self.pl_size, self.pl_size), dtype=np.complex128)
         np.fill_diagonal(dos_mat, self.dos)
@@ -724,16 +873,20 @@ class ElWideBand(Lead):
         return
 
     def _do_sigma_lr(self):
-        """Calculate the Sigma lesser"""
-        assert (not self._mu is None)
+        """
+        Calculate the Sigma lesser
+        """
+        assert not self._mu is None
         self._sigma_lr = (
             dist.fermi(self.energy, self._mu, temppot=self._temperature) *
             1j * self.gamma)
         return
 
     def _do_sigma_gr(self):
-        """Calculate the Sigma lesser"""
-        assert (not self._mu is None)
+        """
+        Calculate the Sigma lesser
+        """
+        assert not self._mu is None
         self._sigma_gr = (
             (dist.fermi(self._energy, self._mu, temppot=self._temperature)
              - 1.0) * 1j * self.gamma)
@@ -741,8 +894,10 @@ class ElWideBand(Lead):
 
 
 class ElWideBandGamma(Lead):
-    """A completely phenomenological virtual lead with coupling given by a
-    single parameter Gamma and purely imaginary self-energies"""
+    """
+    A completely phenomenological virtual lead with coupling given by a
+    single parameter Gamma and purely imaginary self-energies
+    """
 
     def __init__(self,
                  #Param
@@ -781,11 +936,16 @@ class ElWideBandGamma(Lead):
 
     @property
     def temperature(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._temperature
 
     @temperature.setter
     def temperature(self, value):
-        """Set temperature, for non equilibrium self energy"""
+        """
+        Input variable setter. See class doc.
+        """
         self._temperature = value
         self._sigma_gr = None
         self._sigma_lr = None
@@ -793,11 +953,16 @@ class ElWideBandGamma(Lead):
 
     @property
     def energy(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._energy
 
     @energy.setter
     def energy(self, value):
-        """Set energy point"""
+        """
+        Input variable setter. See class doc.
+        """
         if value != self._energy:
             self._energy = value
             self._sigma_ret = None
@@ -807,34 +972,45 @@ class ElWideBandGamma(Lead):
 
     @property
     def mu(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._mu
 
     @mu.setter
     def mu(self, value):
-        """Set a chemical potential, for nonequilibrium self energy"""
+        """
+        Input variable setter. See class doc.
+        """
         self._mu = value
         self._sigma_gr = None
         self._sigma_lr = None
         return
-    
+
     def _do_sigma_ret(self):
-        """Calculate the equilibrium retarded self energy \Sigma^{r}."""
+        """
+        Calculate the equilibrium retarded self energy \Sigma^{r}.
+        """
         gamma = np.zeros((self.size, self.size), dtype=np.complex128)
         np.fill_diagonal(gamma, self._coupling)
         self._sigma_ret = 1j * gamma / 2.
         return
 
     def _do_sigma_lr(self):
-        """Calculate the Sigma lesser"""
-        assert (not self.mu is None)
+        """
+        Calculate the Sigma lesser
+        """
+        assert not self.mu is None
         self._sigma_lr = (
             dist.fermi(self._energy, self._mu, temppot=self._temperature) *
             1j * self.gamma)
         return
 
     def _do_sigma_gr(self):
-        """Calculate the Sigma lesser"""
-        assert (not self.mu is None)
+        """
+        Calculate the Sigma lesser
+        """
+        assert not self.mu is None
         self._sigma_gr = (
             (dist.fermi(self._energy, self._mu, temppot=self._temperature)
              - 1.0) * 1j * self.gamma)

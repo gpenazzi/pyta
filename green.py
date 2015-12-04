@@ -1,9 +1,11 @@
+"""
+Contains solver classes solving the equilibrium and non equilibrium Green's
+function steady state transport, in the commo "NEGF" modeling scheme.
+"""
 import numpy as np
 from pyta import mathutils
 from pyta import solver
-import pyta.lead
-import pyta.consts
-import copy
+#import pyta.consts
 
 
 class Green(solver.Solver):
@@ -63,8 +65,7 @@ class Green(solver.Solver):
     @property
     def green_ret(self):
         """
-        Returns:
-            np.matrix: Retarded Green's function
+        Ouput variable getter. See class doc.
         """
         if self._green_ret is None:
             self._do_green_ret()
@@ -73,8 +74,7 @@ class Green(solver.Solver):
     @property
     def green_lr(self):
         """
-        Returns:
-            np.matrix: Lesser Green's function
+        Output variable getter. See class doc.
         """
         if self._green_lr is None:
             self._do_green_lr()
@@ -83,14 +83,17 @@ class Green(solver.Solver):
     @property
     def green_gr(self):
         """
-        Returns:
-            np.matrix: Greater Green's function
+        Output variable getter. See class doc.
         """
         if self._green_gr is None:
             self._do_green_gr()
         return self._green_gr
 
     def _do_green_ret(self):
+        """
+        Virtual method: solve the Green retarded and fills a
+        self._green_ret member
+        """
         raise RuntimeError('Base Class Green has no _do_green_ret method')
 
     def _do_green_gr(self):
@@ -124,23 +127,38 @@ class Green(solver.Solver):
          Result in place. """
         for lead in self.leads:
             sigma = getattr(lead, attribute)
-            assert (sigma.shape[0] == sigma.shape[1])
+            assert sigma.shape[0] == sigma.shape[1]
             size = sigma.shape[0]
             pos = lead.position
             mat[pos: pos + size, pos:pos + size] = \
                 mat[pos: pos + size, pos:pos + size] + sigma
         return
 
-    def _resize_lead_matrix(self, lead, varname):
-        """Resize a lead matrix in a matrix with the shape of the Green.
-        Elements out of the lead are set to zero.
-        Variable to be converted must be given as string."""
-        leadmat = getattr(lead, varname)
+    def resize_leads_matrix(self, leads, varname):
+        """
+        An utility giving as output a matrix quantity defined in the leads as
+        a full matrix (system size), summing them up if more leads are defined.
+        Note, this use only the size of the Green and the position of the Lead,
+        therefore it works also on leads not included in the instance.
+
+        Typically needed to extract total self energies, total Gamma etc.
+
+        Args:
+            leads (Lead type or list of Leads): list of leads we want to resize
+            varname (string): the attributes to be summed up
+
+        Returns:
+            out (numpy.ndarray): output summed up and decorate matrix
+        """
+        size = self._size
+        leadmat = getattr(leads[0], varname)
         vartype = np.result_type(leadmat)
-        mat = np.zeros((self._size, self._size), dtype=vartype)
-        leadsize = leadmat.shape[0]
-        pos = lead.position
-        mat[pos: pos + leadsize, pos:pos + leadsize] = leadmat
+        mat = np.zeros((size, size), dtype=vartype)
+        for lead in leads:
+            leadmat = getattr(lead, varname)
+            leadsize = leadmat.shape[0]
+            pos = lead.position
+            mat[pos: pos + leadsize, pos:pos + leadsize] += leadmat
         return mat
 
     def transmission(self, leads=None):
@@ -149,7 +167,7 @@ class Green(solver.Solver):
         if set.
         It implements the Landauer Caroli formula"""
         if leads is not None:
-            assert (len(leads) == 2)
+            assert len(leads) == 2
             lead1 = leads[0]
             lead2 = leads[1]
         else:
@@ -179,11 +197,11 @@ class Green(solver.Solver):
         Returns:
             float: value of current in given energy point
         """
-        assert (lead is not None)
+        assert lead is not None
         glr = self.green_lr
         ggr = self.green_gr
-        sgr = self._resize_lead_matrix(lead, 'sigma_gr')
-        slr = self._resize_lead_matrix(lead, 'sigma_lr')
+        sgr = self.resize_leads_matrix([lead], 'sigma_gr')
+        slr = self.resize_leads_matrix([lead], 'sigma_lr')
         const = 1.0  # pyta.consts.e / pyta.consts.h_eVs)
         current = const * np.trace(np.dot(slr, ggr) - np.dot(sgr, glr))
         return current
@@ -199,10 +217,10 @@ class Green(solver.Solver):
         Returns:
             float: value of current in given energy point
         """
-        assert (lead is not None)
+        assert lead is not None
         green_n = -1.0j * self.green_lr
-        sigma_n = -1.0j * self._resize_lead_matrix(lead, 'sigma_lr')
-        gamma = self._resize_lead_matrix(lead, 'gamma')
+        sigma_n = -1.0j * self.resize_leads_matrix([lead], 'sigma_lr')
+        gamma = self.resize_leads_matrix([lead], 'gamma')
         spectral = self.spectral
         const = 1.0
         current = (const *
@@ -212,10 +230,8 @@ class Green(solver.Solver):
 
     @property
     def occupation(self):
-        """Calculate the occupation by comparing the lesser green function
-        and the spectral function.
-        Note: this is defined in a way which I think works only for orthogonal
-         basis
+        """
+        Output variable getter. See class doc.
         """
         diag1 = np.diag(self.green_lr)
         diag2 = np.diag(self.spectral)
@@ -241,7 +257,7 @@ class Green(solver.Solver):
         #Initialize the virtual lead self-energy to zero
         setattr(lead, green_varname, np.zeros((self._size, self._size)))
 
-        def func1(var1):
+        def func1():
             ## Note: var1 here is dummy because it is automatically retrievable
             ## everytime an output variable is retrieved in func2
             self.reset()
@@ -318,11 +334,16 @@ class ElGreen(Green):
 
     @property
     def energy(self):
+        """
+        Input variable getter. See class doc.
+        """
         return self._energy
 
     @energy.setter
     def energy(self, value):
-        """Set energy point"""
+        """
+        Input variable setter. See class doc.
+        """
         if value != self._energy:
             self._energy = value
             self.reset()
@@ -331,7 +352,9 @@ class ElGreen(Green):
         return
 
     def _spread_energy(self, energy):
-        """Distribute energy in leads"""
+        """
+        Distribute energy in leads
+        """
         for lead in self.leads:
             try:
                 getattr(lead, "energy")
@@ -343,14 +366,15 @@ class ElGreen(Green):
     @property
     def local_currents(self):
         """
-        Calculate the matrices of local currents for all orbitals in the system
+        Returns:
+            the matrices of local currents for all orbitals in the system
         """
         green_lr = self.green_lr
         ham = self.ham
         over = self.over
-        en = self.energy
-        lc = np.real(np.multiply(2. * (ham - en * over), green_lr))
-        return lc
+        energy = self.energy
+        currents = np.real(np.multiply(2. * (ham - energy * over), green_lr))
+        return currents
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
@@ -421,6 +445,10 @@ class PhGreen(Green):
 
     @property
     def frequency(self):
+        """
+        Returns:
+            frequency (float): frequency point
+        """
         return self._frequency
 
     @frequency.setter
@@ -435,19 +463,22 @@ class PhGreen(Green):
         """Distribute energy in leads"""
         for lead in self.leads:
             try:
+                getattr(lead, "frequency")
+                lead.frequency = frequency
                 lead.set_frequency(frequency)
             except AttributeError:
                 pass
-            else:
-                lead.set_frequency(frequency)
         return
 
     def _do_green_ret(self):
         """Calculate equilibrium Green's function"""
+        sigma = np.zeros((self._size, self._size), dtype=np.complex128)
         esh = self._frequency * self._frequency * self.mass - self.spring
-        self._add_lead_sigma(esh)
-        esh = esh + 1j*self.delta * self.over
+        self._add_leads(sigma, "sigma_ret")
+        ## Note: I add an imaginary part, to avoid problem if I have no
+        ## leads. Anyway it is small respect to self energy. If you don't want
+        ## it, set delta to 0.0 in constructor
+        esh = esh + 1j*self.delta * self.mass
         self._green_ret = np.linalg.inv(esh)
 
         return self.green_ret
-
