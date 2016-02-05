@@ -239,7 +239,7 @@ class Green(solver.Solver):
         return occupation
 
     def scba(self, lead, mode='equilibrium', niter=None, maxiter=None,
-             tolerance=None, alpha=1.0):
+             tolerance=1e-6, alpha=1.0):
         """
         Perform Born Approximation mixing with respect to self energy contained
         in lead specified in input
@@ -258,8 +258,6 @@ class Green(solver.Solver):
         setattr(lead, green_varname, np.zeros((self._size, self._size)))
 
         def func1():
-            ## Note: var1 here is dummy because it is automatically retrievable
-            ## everytime an output variable is retrieved in func2
             self.reset()
             return getattr(self, green_varname)
 

@@ -38,7 +38,7 @@ def linear_mixer(func1, func2, var1_guess, alpha=1.0,
     if niter is not None:
         assert type(niter)==int and niter >= 0
         for ii in range(niter):
-            var1_nplus1 = (1 - alpha) * var1_n + alpha * func1(var2_n)
+            var1_nplus1 = (1 - alpha) * var1_n + alpha * func1()
             var2_nplus1 = func2(var1_nplus1)
             error = np.amax(np.absolute(var1_n - var1_nplus1))
             var1_n = var1_nplus1
@@ -47,9 +47,10 @@ def linear_mixer(func1, func2, var1_guess, alpha=1.0,
     else:
         assert type(maxiter)==int and maxiter > 1
         for ii in range(maxiter):
-            var1_nplus1 = (1 - alpha) * var1_n + alpha * func1(var2_n)
+            var1_nplus1 = (1 - alpha) * var1_n + alpha * func1()
             var2_nplus1 = func2(var1_nplus1)
             error = np.amax(np.absolute(var1_n - var1_nplus1))
+            print("error: {}".format(error))
             if error < tolerance:
                 print('SCBA Iterations: {}'.format(ii))
                 return var1_n, var2_n

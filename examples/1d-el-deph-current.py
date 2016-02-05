@@ -13,7 +13,7 @@ strenght the current is lower and should go down linearly with the chain length 
 
 #Set an energy range
 en_points = 500
-en, step = np.linspace(-2.0, 2.0, en_points, retstep = True)
+en, step = np.linspace(-5.0, 5.0, en_points, retstep = True)
 #System length
 n = 100
 #Maximum number of Self Consistent Born Approximation steps and SCBA tolerance
@@ -23,7 +23,7 @@ scba_tol = 1e-8
 #Device Hamiltonian and coupling parameters
 ham = np.matrix(np.zeros((n,n)) * 1j)
 hopping_element = 1.0
-onsite = 1.0
+onsite = 0.0
 for i in range(n-1):
     ham[i,i+1] = hopping_element
     ham[i+1,i] = hopping_element
@@ -49,9 +49,9 @@ pl_ham_l = np.matrix([onsite])
 pl_t = np.matrix([coupling_left])
 pl_ld = np.matrix([coupling_left])
 left = pyta.lead.ElLead(0, pl_ham_l, pl_t, pl_ld)
-t = 100.0 * pyta.consts.kb_eV__K
+t = 0.0 * pyta.consts.kb_eV__K
 left.temperature = t
-left.mu = 0.0
+left.mu = -5.0
 ####################
 
 #Declare right lead
@@ -59,14 +59,14 @@ pl_ham_r = np.matrix([onsite])
 pl_t = np.matrix([coupling_right])
 pl_ld = np.matrix([coupling_right])
 right = pyta.lead.ElLead(n-1, pl_ham_r, pl_t, pl_ld)
-t = 100.0 * pyta.consts.kb_eV__K
+t = 0.0 * pyta.consts.kb_eV__K
 right.temperature = t
-right.mu = 1.0
+right.mu = 5.0
 ###################
 
 #Declare virtual lead
 dephase_parameter = np.array(np.zeros(n))
-dephase_parameter[0:n] = 1e-20
+dephase_parameter[0:n] = 0.001
 dephasing = pyta.lead.MRDephasing()
 dephasing.coupling = dephase_parameter
 ######################
@@ -83,9 +83,9 @@ total_current = 0.0
 for ind, ener in enumerate(en):
     green_obj.energy = ener
     #SCBA loop
-    green_obj.scba(dephasing,mode='equilibrium',niter=1)
-    green_obj.scba(dephasing,mode='keldysh',niter=1)
-    curr[ind] = green_obj.meirwingreen(lead=left)
+    green_obj.scba(dephasing,mode='equilibrium',maxiter=100)
+    green_obj.scba(dephasing,mode='keldysh',maxiter=100)
+    curr[ind] = green_obj.meirwingreen(lead=right)
     total_current += curr[ind] * step
 
 #Plot the results
