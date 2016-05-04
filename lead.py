@@ -993,7 +993,7 @@ class ElWideBandGamma(Lead):
         """
         gamma = np.zeros((self.size, self.size), dtype=np.complex128)
         np.fill_diagonal(gamma, self._coupling)
-        self._sigma_ret = 1j * gamma / 2.
+        self._sigma_ret = -1j * gamma / 2.
         return
 
     def _do_sigma_lr(self):

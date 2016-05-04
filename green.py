@@ -289,11 +289,9 @@ class ElGreen(Green):
 
         invar:
         1) energy
-            mode: overwrite
 
         2) leads
             set of Leads
-            mode: overwrite, append
 
         parameters:
         1)  ham

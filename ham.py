@@ -66,8 +66,56 @@ def linear_ham(length, onsite, hopping):
     return ham
 
 
+class Stub(solver.Solver):
+    """
+    A solver providing a simple TB model of a stub, constructed as
+    (P is the perturbation):
+
+                        P
+                        |
+    ...**********************************...
+
+    Parameters
+    -----------------------------------
+    length (int): chain length, as number of repetition of H
+    onsite (float): onsite energy.
+    hopping (float): hopping matrix element.
+    onsite_perturbation (float): perturbation on-site energy
+    hopping_perturbation (float): hopping element between P ad the chain
+    interacting_sites (int or list): where to put P. Note that we can have several
+        perturbation
+
+    """
+    def __init__(self,
+                 length,
+                 interacting_sites,
+                 onsite_perturbation=0.0,
+                 hopping_perturbation=1.0,
+                 onsite=0.0,
+                 hopping=1.0):
+        n = length
+        if type(interacting_sites) is int:
+            interacting_sites = [interacting_sites]
+        size = len(interacting_sites) + n
+        self.ham = np.zeros((size, size))
+        for i in range(n - 1):
+            self.ham[i, i + 1] = np.conj(hopping)
+            self.ham[i + 1, i] = hopping
+        for i in range(n):
+            self.ham[i, i] = onsite
+        #Add the perturbations
+        for ii in range(n,size):
+            self.ham[ii, ii] = onsite_perturbation
+        for ind, ii in enumerate(interacting_sites):
+            self.ham[n+ind, ii] = np.conj(hopping_perturbation)
+            self.ham[ii, n+ind] = hopping_perturbation
+
+
+
 class LinearChainHam(solver.Solver):
-    """A solver class providing a simple linear chain nearest neighbor hamiltonian.
+    """
+    A solver providing a simple linear chain nearest neighbor
+    hamiltonian. Mainly for testing purpose
     
         Parameters 
         ----------------------
@@ -76,11 +124,6 @@ class LinearChainHam(solver.Solver):
         hopping (float): hopping matrix element. A NxN block can be
                                             specified
 
-        Invar
-        -----------------------
-        delta_h (ndarray_like): add a shift to the Hamiltonian. The input
-                                quantity must be of same size as the
-                                hamiltonian.
 
         Outvar
         -----------------------
@@ -114,9 +157,6 @@ class LinearChainHam(solver.Solver):
         self.ham = None
         self.over = None
 
-        #Invar
-        self.delta_h = None
-
         #First hamiltonian and overlap calculation
         self._init_ham_over()
 
@@ -124,8 +164,8 @@ class LinearChainHam(solver.Solver):
     def _init_ham_over(self):
         """Private: create the first hamiltonian and overlap"""
         n = self.length
-        self.ham = np.asmatrix(np.zeros((n, n)))
-        self.over = np.asmatrix(np.identity(n))
+        self.ham = np.zeros((n, n))
+        self.over = np.identity(n)
         for i in range(n - 1):
             self.ham[i, i + 1] = np.conj(self.hopping)
             self.ham[i + 1, i] = self.hopping
