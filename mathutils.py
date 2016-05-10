@@ -52,7 +52,7 @@ def linear_mixer(func1, func2, var1_guess, alpha=1.0,
             error = np.amax(np.absolute(var1_n - var1_nplus1))
             #print("error: {}".format(error))
             if error < tolerance:
-                #print('SCBA Iterations: {}'.format(ii))
+                print('SCBA Iterations: {}'.format(ii))
                 return var1_n, var2_n
             var1_n = var1_nplus1
             var2_n = var2_nplus1

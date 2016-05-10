@@ -287,6 +287,143 @@ class MRDephasing(Lead):
         return
 
 
+class MCDephasing(Lead):
+    """A virtual Lead modelling Momentum conserving dephasing"""
+
+    def __init__(self,
+                 #Invar
+                 green_ret=None,
+                 green_lr=None,
+                 coupling=None):
+        """
+        Only the name and dephasing intensity needed at first.
+        You have to provide the equilibrium and the Keldysh Green's function.
+
+        Note: if the coupling is
+
+        outvar:
+        1) sigma_ret
+        2) sigma_gr
+        3) sigma_lr
+        4) gamma
+
+        invar:
+        1) deph
+        dephasing parameter (double)
+        2) green_ret
+        Reference retarded Green's function
+        3) green_lr
+        Reference lesser Green's function
+        4) over
+
+        internal:
+        2) size
+        index of system to be attached to
+
+        """
+
+        #Param
+        #================================
+        #================================
+
+        #Invar
+        #================================
+        self._coupling = coupling
+        self._green_ret = green_ret
+        self._green_lr = green_lr
+        #================================
+
+        #Base constructors
+        position = 0
+        super(MCDephasing, self).__init__(position)
+
+    @property
+    def coupling(self):
+        """
+        Returns:
+            coupling ()
+        """
+        return self._coupling
+
+    @property
+    def size(self):
+        """
+        Returns:
+            size: system size
+        """
+        return self._green_ret.shape[0]
+
+    @coupling.setter
+    def coupling(self, value):
+        """Set a new dephasing parameter"""
+        self._sigma_ret = None
+        self._sigma_gr = None
+        self._sigma_lr = None
+        self._coupling = value
+        return
+
+    @property
+    def green_ret(self):
+        """
+        Returns:
+            green_ret (numpy.ndarray): green retarded used to build the self
+                energy
+        """
+        return self._green_ret
+
+    @green_ret.setter
+    def green_ret(self, value):
+        """
+        Args:
+            green_ret (numpy.ndarray): set the retarded green function used to
+                build the self energy
+        """
+        self._sigma_ret = None
+        self._green_ret = value
+
+    @property
+    def green_lr(self):
+        """
+        Returns:
+            green_ret (numpy.ndarray): green retarded used to build the self
+                energy
+        """
+        return self._green_lr
+
+    @green_lr.setter
+    def green_lr(self, value):
+        """
+        Args:
+            green_lr (numpy.ndarray): set the lesser green function used to
+                build the self energy
+        """
+        self._sigma_lr = None
+        self._green_lr = value
+
+    def _do_sigma_ret(self):
+        """
+        Calculate the retarded self energy
+        """
+        self._sigma_ret = self.coupling * self.green_ret
+        return
+
+    def _do_sigma_gr(self):
+        """
+        Calculate the greater self energy
+        """
+        gamma = self.gamma
+        sigma_lr = self.sigma_lr
+        self._sigma_gr = sigma_lr - 1j * gamma
+        return
+
+    def _do_sigma_lr(self):
+        """
+        Calculate the lesser self energy
+        """
+        self._sigma_lr = self.coupling * self.green_lr
+        return
+
+
 class MRDephasingClose(Lead):
     """
     A virtual Lead modelling Momentum relaxing dephasing. It assume a
@@ -560,6 +697,13 @@ class ElLead(Lead):
         self._sigma_lr = None
         return
 
+    @property
+    def distribution(self):
+        """
+        Return the value of Fermi distribution
+        """
+        return dist.fermi(self._energy, self.mu, temppot=self._temperature)
+
     def _do_invsurfgreen(self, tol=defaults.surfgreen_tol):
         """
         Calculate the INVERSE of surface green's function
@@ -606,8 +750,7 @@ class ElLead(Lead):
         """
         assert not self.mu is None
         self._sigma_lr = (
-            dist.fermi(self._energy, self.mu, temppot=self._temperature) *
-            1j * self.gamma)
+            self.distribution * 1j * self.gamma)
 
     def _do_sigma_gr(self):
         """
@@ -615,8 +758,8 @@ class ElLead(Lead):
         """
         assert not self.mu is None
         self._sigma_gr = (
-            (dist.fermi(self.energy, self.mu, temppot=self.temperature)
-             - 1.0) * 1j * self.gamma)
+            (self.distribution - 1.0) * 1j * self.gamma)
+
 
 
 # noinspection PyArgumentList
@@ -860,6 +1003,13 @@ class ElWideBand(Lead):
         self._sigma_lr = None
         return
 
+    @property
+    def distribution(self):
+        """
+        Return the value of Fermi distribution
+        """
+        return dist.fermi(self._energy, self.mu, temppot=self._temperature)
+
     def _do_sigma_ret(self):
         """
         Calculate the equilibrium retarded self energy \Sigma^{r}.
@@ -878,8 +1028,7 @@ class ElWideBand(Lead):
         """
         assert not self._mu is None
         self._sigma_lr = (
-            dist.fermi(self.energy, self._mu, temppot=self._temperature) *
-            1j * self.gamma)
+            self.distribution * 1j * self.gamma)
         return
 
     def _do_sigma_gr(self):
@@ -888,8 +1037,7 @@ class ElWideBand(Lead):
         """
         assert not self._mu is None
         self._sigma_gr = (
-            (dist.fermi(self._energy, self._mu, temppot=self._temperature)
-             - 1.0) * 1j * self.gamma)
+            (self.distribution - 1.0) * 1j * self.gamma)
         return
 
 
@@ -987,6 +1135,13 @@ class ElWideBandGamma(Lead):
         self._sigma_lr = None
         return
 
+    @property
+    def distribution(self):
+        """
+        Return the value of Fermi distribution
+        """
+        return dist.fermi(self._energy, self.mu, temppot=self._temperature)
+
     def _do_sigma_ret(self):
         """
         Calculate the equilibrium retarded self energy \Sigma^{r}.
@@ -1002,8 +1157,7 @@ class ElWideBandGamma(Lead):
         """
         assert not self.mu is None
         self._sigma_lr = (
-            dist.fermi(self._energy, self._mu, temppot=self._temperature) *
-            1j * self.gamma)
+            self.distribution * 1j * self.gamma)
         return
 
     def _do_sigma_gr(self):
@@ -1012,6 +1166,5 @@ class ElWideBandGamma(Lead):
         """
         assert not self.mu is None
         self._sigma_gr = (
-            (dist.fermi(self._energy, self._mu, temppot=self._temperature)
-             - 1.0) * 1j * self.gamma)
+            (self.distribution - 1.0) * 1j * self.gamma)
         return

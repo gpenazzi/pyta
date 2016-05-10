@@ -239,7 +239,7 @@ class Green(solver.Solver):
         return occupation
 
     def scba(self, lead, mode='equilibrium', niter=None, maxiter=None,
-             tolerance=1e-6, alpha=1.0):
+             tolerance=1e-6, alpha=1.0, gzero=None):
         """
         Perform Born Approximation mixing with respect to self energy contained
         in lead specified in input
@@ -254,8 +254,11 @@ class Green(solver.Solver):
         else:
             raise AttributeError('Unknown mode: must be equilibrium or keldysh')
 
-        #Initialize the virtual lead self-energy to zero
-        setattr(lead, green_varname, np.zeros((self._size, self._size)))
+        #Initialize the virtual lead self-energy to zero or to given input value
+        if gzero is None:
+            setattr(lead, green_varname, np.zeros((self._size, self._size)))
+        else:
+            setattr(lead, green_varname, gzero)
 
         def func1():
             self.reset()

@@ -28,6 +28,29 @@ def random_onsite(size, delta, seed=None):
     return disorder
 
 
+def gaussian_onsite(size, stddev, seed=None):
+    """
+    Return a matrix containing a gaussian with standard deviation stddev
+
+    Parameters
+    ----------------
+    int (int or matrix): matrix size (for square matrix)
+    delta (float): disorder interval
+    seed (hashable): random generator seed
+    """
+    if type(size) != int or type(size) != np.int:
+        if size.shape[0] != size.shape[1]:
+            raise ValueError('size must be an integer or a square matrix')
+        size = size.shape[0]
+    np.random.seed(seed)
+    disorder = np.zeros((size, size))
+    disorder_diag = np.random.normal(scale=stddev, size=size)
+    diag_ind = np.diag_indices(size)
+    disorder[diag_ind] = disorder_diag
+
+    return disorder
+
+
 def random_hopping(mask, delta, seed=None, tol=0.0):
     """
     Return a matrix containing a random disorder in the interval -delta, +delta
