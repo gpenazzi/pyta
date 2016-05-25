@@ -89,6 +89,70 @@ def linear_ham(length, onsite, hopping):
     return ham
 
 
+class GaussianProcess(solver.Solver):
+    """
+    A solver providing a model of time dependent Hamiltonian H(t) mimicking a
+    Gaussian process with give time correlation.
+    The Gaussian disorder is added on all the onsite energies
+
+    Parameters
+    ---------------------------------------------
+    length (int): chain length (number of orbitals). Note: model is only tested
+        for single orbital linear chains, not for block chains
+    onsite (float): onsite energy.
+    hopping (float): hopping matrix element.
+    timesteps (int): length of time interval
+    variance (float): variance of gaussian disorder
+    correlation_length (int): correlation length of the process
+
+    Output
+    ----------------------------------------------
+    hzero (ndarray length x length): matrix with unperturbed Hamiltonian
+    ham   (ndarray time x length x length): time serie with perturbation
+    """
+    def __init__(self,
+                 length=1,
+                 onsite=0.0,
+                 hopping=1.0,
+                 variance=0.1,
+                 correlation_length=1,
+                 timesteps=1):
+        self.hzero = linear_ham(length=length, onsite=onsite,
+                                hopping=hopping)
+        self.ham = np.zeros(shape=(timesteps, length, length))
+        self.variance = variance
+        self.hopping = hopping
+        self.correlation_length = correlation_length
+        self.timesteps = timesteps
+        self.length = length
+
+        ff = np.exp(-1.0/correlation_length)
+        ff2 = ff*ff
+
+        for ii in range(timesteps):
+            self.ham[ii] = self.hzero + np.sqrt(1.0-ff2) * gaussian_onsite(
+                length, np.sqrt(self.variance)) + ff * self.ham[ii-1]
+
+    def plot_me(self):
+        import matplotlib.pyplot as plt
+        color = ['r', 'g', 'b', 'y']
+        for nn in range(self.length):
+            print(color[nn%len(color)])
+            plt.plot(self.ham[:, nn, nn], color[nn%len(color)])
+        plt.show()
+
+    def show_spectrum(self):
+        import matplotlib.pyplot as plt
+        spectrum = np.fft.fft(self.ham, axis=0)
+        color = ['r', 'g', 'b', 'y']
+        for nn in range(self.length):
+            print(color[nn%len(color)])
+            plt.plot(np.real(spectrum[:, nn, nn]), color[nn%len(color)])
+        plt.show()
+
+
+
+
 class Stub(solver.Solver):
     """
     A solver providing a simple TB model of a stub, constructed as
